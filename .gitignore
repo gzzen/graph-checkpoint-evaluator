@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
+
+# Local data, environments and run outputs never enter the repo
+*.nosync/
+envs/local/
+out/
+runs/
+**/logs/
+
+# Local configuration overrides
+builders/bixbench/config.local.toml
+
+.DS_Store
