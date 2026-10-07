@@ -1,0 +1,13 @@
+# Paths used by the BixBench reference builder. Relative paths resolve against this file's directory.
+# Override any key in config.local.toml (git-ignored) next to this file.
+
+# BixBench v1.5 question set (jsonl with question, ideal, eval_mode, capsule_uuid, short_id).
+questions = "../../../../DASC/0907/evaluator/BixBench.jsonl"
+# Directory holding CapsuleNotebook-<uuid>/ and CapsuleData-<uuid>/ folders.
+capsules = "../../../local.nosync"
+# Re-run environments created by envs/setup.sh.
+python = "../../../envs.nosync/pyenv/bin/python"
+r_library = "../../../envs.nosync/Rlib"
+rscript = "Rscript"
+# Scratch output for extracted scripts and logs (git-ignored).
+work = "../../out/rerun"
