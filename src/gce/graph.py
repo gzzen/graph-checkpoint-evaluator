@@ -1,6 +1,7 @@
 """Checkpoint graph model: nodes, tasks, task paths and shared nodes."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,16 @@ from typing import Any
 from .io import load_doc
 
 STAGE_TYPES = ("inputs", "cohort", "filter", "transform", "model", "result_table", "downstream", "answer")
+# Context regexes are matched case-insensitively near a value; one that matches inside ordinary short
+# words (e.g. "p" in "up", "F" in "of") supports almost any number on any line.
+_FILLER = "of to in at by up if an as on or is it go no so we he me my do be"
+
+
+def _too_generic(pattern: str) -> bool:
+    try:
+        return re.search(pattern, _FILLER, re.IGNORECASE) is not None
+    except re.error:
+        return True
 
 
 @dataclass
@@ -112,6 +123,10 @@ class Graph:
             names = [q.name for q in node.quantities]
             if len(names) != len(set(names)):
                 errors.append(f"node {node.id!r} has duplicate quantity names")
+            for q in node.quantities:
+                for pattern in q.context:
+                    if _too_generic(pattern):
+                        errors.append(f"node {node.id!r} quantity {q.name!r}: context {pattern!r} matches common short words; anchor it (e.g. \\b...\\b)")
         for task in self.tasks.values():
             if task.answer_node not in self.nodes:
                 errors.append(f"task {task.id!r} answer_node {task.answer_node!r} is not a node")

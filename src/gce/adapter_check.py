@@ -59,6 +59,7 @@ def check_adapter(adapter: Adapter, run_root: str | Path, graphs: list[Graph] | 
 
     picked = refs if len(refs) <= sample else sorted(random.Random(seed).sample(refs, sample), key=lambda r: ids.index(r.id))
     covered_known = 0
+    unknown_tasks: list[str] = []
     for ref in picked:
         report.units_checked.append(ref.id)
         where = f"[{ref.id}]"
@@ -87,7 +88,7 @@ def check_adapter(adapter: Adapter, run_root: str | Path, graphs: list[Graph] | 
             if task in known_tasks:
                 covered_known += 1
             elif known_tasks:
-                report.warnings.append(f"{where} task {task!r} is not in any provided graph")
+                unknown_tasks.append(task)
         extra_answers = set(doc["final_answers"]) - set(run["tasks_covered"])
         if extra_answers:
             report.errors.append(f"{where} final_answers for tasks not in tasks_covered: {sorted(extra_answers)}")
@@ -103,8 +104,12 @@ def check_adapter(adapter: Adapter, run_root: str | Path, graphs: list[Graph] | 
         for answer in doc["final_answers"].values():
             report.statuses[answer["status"]] = report.statuses.get(answer["status"], 0) + 1
 
+    if unknown_tasks:
+        report.warnings.append(f"{len(unknown_tasks)} covered task(s) have no graph yet, e.g. {sorted(set(unknown_tasks))[:5]}")
     if known_tasks and covered_known == 0 and report.units_checked:
-        report.errors.append("none of the checked units cover a task known to the provided graphs")
+        # graphs may cover only part of a benchmark; a format mismatch shows up as zero matches overall
+        report.warnings.append("none of the checked units cover a task known to the provided graphs "
+                               "(fine if the graphs cover other tasks; otherwise check how task ids are read)")
     if _snapshot(run_root) != before:
         report.errors.append("the run root changed during the check (adapters must be read-only)")
     return report

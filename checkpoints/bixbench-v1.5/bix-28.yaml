@@ -15,6 +15,10 @@ notes: >-
   each single-copy BUSCO across the lineage's species (no minimum occupancy); MAFFT --auto; ClipKIT default;
   IQ-TREE -m TEST; PhyKIT long_branch_score per tree (mean and median over taxa). The Mann-Whitney U is
   scipy's statistic for animals as the first sample (U for fungi first: 100*249 - 4639 = 20261).
+  Data versions differ: the BixBench v1.5 capsule folder used by the native_vs_b harness also ships the
+  BUSCO results (*.busco.zip), busco_downloads.zip and the per-lineage alignments and IQ-TREE trees
+  (scogs_animals.zip, scogs_fungi.zip), so agents may start from the trees. The stages that build the trees
+  are therefore non-gating; r_lbs (100 animal / 249 fungal trees) is the first gating checkpoint.
 tasks:
   - id: bix-28-q1
     answer_node: a_q1
@@ -50,6 +54,7 @@ nodes:
   - id: in_proteomes
     stage_type: inputs
     description: Load the eight proteomes (four animals, four fungi) and the BUSCO eukaryota_odb10 lineage dataset.
+    gating: false
     quantities:
       - {name: n_proteomes, expected: {type: integer, value: 8}, aliases: [proteomes, n_species], context: ["proteome", "species", "\\.faa"]}
     provenance: {source: printed, ref: "data folder; cell 20 listing"}
@@ -57,6 +62,7 @@ nodes:
     stage_type: transform
     description: Identify BUSCO markers in each proteome (protein mode, eukaryota_odb10, 255 markers); single-copy completeness per species.
     depends_on: [in_proteomes]
+    gating: false
     params: {tool: BUSCO 5.8.0, mode: proteins, lineage: eukaryota_odb10}
     quantities:
       - {name: n_markers, expected: {type: integer, value: 255}, aliases: [busco_markers, n_buscos], context: ["n:", "BUSCO", "marker"]}
@@ -72,6 +78,7 @@ nodes:
     stage_type: transform
     description: For each single-copy ortholog and lineage, build a multi-FASTA across the lineage's species, align it and trim the alignment.
     depends_on: [tf_busco]
+    gating: false
     params: {aligner: "MAFFT --auto", trimming: "ClipKIT smart-gap (default)"}
     probe:
       patterns: ["mafft", "clipkit", "muscle", "trimal", "clustal"]
@@ -80,6 +87,7 @@ nodes:
     stage_type: transform
     description: Infer a maximum-likelihood single-gene tree for every trimmed alignment with automatic model selection.
     depends_on: [tf_align]
+    gating: false
     params: {tool: "IQ-TREE 2.3.6", model: "-m TEST"}
     probe:
       patterns: ["iqtree", "raxml", "fasttree", "phyml"]
@@ -137,12 +145,12 @@ nodes:
     description: Mann-Whitney U statistic for per-gene mean LBS (animals as first sample).
     depends_on: [st_mwu]
     quantities:
-      - {name: u_mean_lbs, expected: {type: number, value: 4639.0, decimals: 1}, aliases: [u, u_statistic, U-stat], context: ["U", "mean"]}
+      - {name: u_mean_lbs, expected: {type: number, value: 4639.0, decimals: 1}, aliases: [u, u_statistic, U-stat], context: ["\\bU\\b", "U-stat", "mean"]}
     provenance: {source: printed, ref: "cell 41 (LBS_mean U-stat 4639.0, p 2.81e-29)"}
   - id: a_q1
     stage_type: answer
     description: p-value of the Mann-Whitney U test for per-gene median LBS.
     depends_on: [st_mwu]
     quantities:
-      - {name: p_median_lbs, expected: {type: number, value: 5.10659e-47, sig_figs: 4}, aliases: [p, p_value], context: ["p", "median"]}
+      - {name: p_median_lbs, expected: {type: number, value: 5.10659e-47, sig_figs: 4}, aliases: [p, p_value], context: ["median"]}
     provenance: {source: printed, ref: "cell 41 (LBS_median U-stat 177.0, p 5.106590e-47)"}

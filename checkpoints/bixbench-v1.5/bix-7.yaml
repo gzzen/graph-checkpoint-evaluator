@@ -103,8 +103,8 @@ nodes:
     description: ANOVA across the four groups is not significant; no pairwise comparison survives correction.
     depends_on: [st_tests]
     quantities:
-      - {name: anova_p, expected: {type: number, value: 0.464, abs_tol: 0.005}, aliases: [p_anova], context: ["anova", "F", "p"]}
-      - {name: anova_F, expected: {type: number, value: 0.863, abs_tol: 0.005}, aliases: [F, f_statistic], context: ["F", "anova"]}
+      - {name: anova_p, expected: {type: number, value: 0.464, abs_tol: 0.005}, aliases: [p_anova], context: ["anova", "p[-_ .]?val", "\\bp\\s*="]}
+      - {name: anova_F, expected: {type: number, value: 0.863, abs_tol: 0.005}, aliases: [F, f_statistic], context: ["anova", "\\bF\\b"]}
     require: any
     provenance: {source: rerun, ref: "evidence anova_p, anova_F, pairwise_bonferroni (all p.adj = 1)"}
   - id: a_q1

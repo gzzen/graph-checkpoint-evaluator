@@ -37,9 +37,18 @@ One graph per **task group**: the tasks that share a reference analysis, such as
   - `stage_type`: one of `inputs`, `cohort`, `filter`, `transform`, `model`, `result_table`,
     `downstream`, `answer`. Other lower_snake strings are allowed for other domains.
   - `description`: semantic and tool-agnostic. Say *what* is computed, never which library computes it.
-  - `quantities[]`: the measurable outputs of the step (`name`, `expected`, `aliases`, `context`,
-    `specificity`), combined with `require: all|any`. A node without quantities is *semantic*: it is
-    evidenced by `probe.patterns` over agent code, or by the LLM judge.
+  - `quantities[]`: the measurable outputs of the step, combined with `require: all|any`. Each has:
+    - `name` and `expected`;
+    - `aliases`: names an agent may use for the quantity. They are matched against stage-log keys,
+      and in raw output against a number labelled `alias: value` or `alias = value`. That labelled
+      number is the only way raw text can show a wrong value (a `fail`).
+    - `context`: regexes that must appear on the hit's line (or on the line above a values-only line)
+      before a low-specificity or ambiguous value is accepted. Context only disambiguates; patterns
+      that match short common words are rejected by `gce validate`.
+    - `specificity`: overrides the low/high heuristic.
+
+    A node without quantities is *semantic*: it is evidenced by `probe.patterns` over the agent's
+    executed code (not over inspection commands such as `pip list | grep tool`), or by the LLM judge.
   - `depends_on[]`: DAG edges. **A task's path is the set of ancestors of its answer node.**
   - `gating` (default true): failing it blocks a correct answer. Non-gating nodes are reported but do
     not end the path.
