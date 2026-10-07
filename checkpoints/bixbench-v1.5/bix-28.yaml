@@ -1,0 +1,148 @@
+# BixBench v1.5 bix-28: long branch scores of single-copy orthologs, animals vs fungi.
+# Reference: CapsuleNotebook-c66d3ed9 (bash + Python). Per-gene values are printed (cell 37); summaries
+# not computed in the notebook were derived from that table (provenance: derived).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-28
+title: Long branch scores of BUSCO single-copy orthologs in animals vs fungi
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: c66d3ed9-0a95-46be-a237-ed68498ea7f6
+  archetype: phylo_phykit
+  data: ["Animals_{Cele,Ggal,Mmus,Xlae}.faa", "Fungi_{Ncra,Scer,Spom,Umay}.faa", "eukaryota_odb10.2024-01-08.tar.gz"]
+notes: >-
+  Pipeline: BUSCO v5.8.0 (protein mode, eukaryota_odb10, 255 markers) per proteome; per-lineage multi-FASTA of
+  each single-copy BUSCO across the lineage's species (no minimum occupancy); MAFFT --auto; ClipKIT default;
+  IQ-TREE -m TEST; PhyKIT long_branch_score per tree (mean and median over taxa). The Mann-Whitney U is
+  scipy's statistic for animals as the first sample (U for fungi first: 100*249 - 4639 = 20261).
+tasks:
+  - id: bix-28-q1
+    answer_node: a_q1
+    question: p-value of the Mann-Whitney U test comparing median long branch scores between fungi and animals.
+    ideal: {type: number, value: 5.107e-47, sig_figs: 4}
+    label_status: consistent
+  - id: bix-28-q2
+    answer_node: a_q2
+    question: Median of the per-gene mean long branch scores for fungal genes.
+    ideal: {type: number, value: -25.0, decimals: 1}
+    label_status: consistent
+  - id: bix-28-q3
+    answer_node: a_q3
+    question: Median long branch score of the fungal gene 996662at2759.
+    ideal: {type: number, value: -30.4551, decimals: 4}
+    label_status: consistent
+  - id: bix-28-q4
+    answer_node: a_q4
+    question: Mann-Whitney U statistic comparing per-gene mean long branch scores between animals and fungi.
+    ideal: {type: number, value: 4639.0, decimals: 1}
+    label_status: consistent
+  - id: bix-28-q5
+    answer_node: a_q5
+    question: Average of the per-gene median long branch scores for fungal genes.
+    ideal: {type: number, value: -26.9, decimals: 1}
+    label_status: consistent
+  - id: bix-28-q6
+    answer_node: a_q6
+    question: Absolute difference between the average per-gene mean long branch scores of animals and fungi.
+    ideal: {type: number, value: 5.2, decimals: 1}
+    label_status: consistent
+nodes:
+  - id: in_proteomes
+    stage_type: inputs
+    description: Load the eight proteomes (four animals, four fungi) and the BUSCO eukaryota_odb10 lineage dataset.
+    quantities:
+      - {name: n_proteomes, expected: {type: integer, value: 8}, aliases: [proteomes, n_species], context: ["proteome", "species", "\\.faa"]}
+    provenance: {source: printed, ref: "data folder; cell 20 listing"}
+  - id: tf_busco
+    stage_type: transform
+    description: Identify BUSCO markers in each proteome (protein mode, eukaryota_odb10, 255 markers); single-copy completeness per species.
+    depends_on: [in_proteomes]
+    params: {tool: BUSCO 5.8.0, mode: proteins, lineage: eukaryota_odb10}
+    quantities:
+      - {name: n_markers, expected: {type: integer, value: 255}, aliases: [busco_markers, n_buscos], context: ["n:", "BUSCO", "marker"]}
+      - {name: single_copy_pct_mmus, expected: {type: percent, value: 44.3, abs_tol: 1.0}, context: ["S:"]}
+      - {name: single_copy_pct_xlae, expected: {type: percent, value: 27.1, abs_tol: 1.0}, context: ["S:"]}
+      - {name: single_copy_pct_ggal, expected: {type: percent, value: 51.0, abs_tol: 1.0}, context: ["S:"]}
+      - {name: single_copy_pct_umay, expected: {type: percent, value: 98.8, abs_tol: 0.5}, context: ["S:"]}
+    require: any
+    probe:
+      patterns: ["busco", "odb10"]
+    provenance: {source: printed, ref: "cell 18 BUSCO summaries (S: Cele 87.1, Ggal 51.0, Mmus 44.3, Xlae 27.1, Ncra 92.9, Scer 92.9, Spom 95.7, Umay 98.8 %)"}
+  - id: tf_align
+    stage_type: transform
+    description: For each single-copy ortholog and lineage, build a multi-FASTA across the lineage's species, align it and trim the alignment.
+    depends_on: [tf_busco]
+    params: {aligner: "MAFFT --auto", trimming: "ClipKIT smart-gap (default)"}
+    probe:
+      patterns: ["mafft", "clipkit", "muscle", "trimal", "clustal"]
+    provenance: {source: printed, ref: "cells 20-28"}
+  - id: tf_trees
+    stage_type: transform
+    description: Infer a maximum-likelihood single-gene tree for every trimmed alignment with automatic model selection.
+    depends_on: [tf_align]
+    params: {tool: "IQ-TREE 2.3.6", model: "-m TEST"}
+    probe:
+      patterns: ["iqtree", "raxml", "fasttree", "phyml"]
+    provenance: {source: printed, ref: "cell 32"}
+  - id: r_lbs
+    stage_type: result_table
+    description: Per-gene long branch scores (mean and median over taxa) with PhyKIT for every tree; one row per gene and lineage.
+    depends_on: [tf_trees]
+    hidden: true
+    params: {tool: "PhyKIT long_branch_score", inclusion: "every single-copy BUSCO with a tree, no minimum species occupancy"}
+    quantities:
+      - {name: n_genes_animals, expected: {type: integer, value: 100}, aliases: [animal_genes, n_animal_trees], context: ["animal"]}
+      - {name: n_genes_fungi, expected: {type: integer, value: 249}, aliases: [fungal_genes, n_fungal_trees], context: ["fung"]}
+    require: any
+    probe:
+      patterns: ["long_branch_score", "pk_lbs", "phykit"]
+    provenance: {source: printed, ref: "cell 37 (698 rows: 100 animal and 249 fungal genes x {mean, median})"}
+  - id: a_q3
+    stage_type: answer
+    description: Median long branch score of fungal gene 996662at2759.
+    depends_on: [r_lbs]
+    quantities:
+      - {name: lbs_median_996662_fungi, expected: {type: number, value: -30.4551, decimals: 4}, context: ["996662"]}
+    provenance: {source: printed, ref: "cell 37"}
+  - id: a_q2
+    stage_type: answer
+    description: Median over fungal genes of the per-gene mean long branch score.
+    depends_on: [r_lbs]
+    quantities:
+      - {name: median_of_mean_lbs_fungi, expected: {type: number, value: -25.0, decimals: 1}, context: ["median", "fung"]}
+    provenance: {source: derived, ref: "median of 249 fungal LBS_mean values in cell 37"}
+  - id: a_q5
+    stage_type: answer
+    description: Mean over fungal genes of the per-gene median long branch score.
+    depends_on: [r_lbs]
+    quantities:
+      - {name: mean_of_median_lbs_fungi, expected: {type: number, value: -26.91, decimals: 1}, context: ["mean|average", "fung"]}
+    provenance: {source: derived, ref: "mean of 249 fungal LBS_median values in cell 37 = -26.91"}
+  - id: a_q6
+    stage_type: answer
+    description: Absolute difference between the mean of per-gene mean LBS in animals (-31.50) and fungi (-26.27).
+    depends_on: [r_lbs]
+    quantities:
+      - {name: abs_diff_mean_lbs, expected: {type: number, value: 5.23, decimals: 1}, context: ["diff"]}
+    provenance: {source: derived, ref: "|-31.4999 - (-26.2717)| = 5.228"}
+  - id: st_mwu
+    stage_type: model
+    description: Two-sided Mann-Whitney U test of per-gene LBS (mean and median separately) between animals and fungi.
+    depends_on: [r_lbs]
+    probe:
+      patterns: ["mannwhitneyu", "wilcox\\.test", "mann.?whitney", "ranksums"]
+    provenance: {source: printed, ref: "cell 41"}
+  - id: a_q4
+    stage_type: answer
+    description: Mann-Whitney U statistic for per-gene mean LBS (animals as first sample).
+    depends_on: [st_mwu]
+    quantities:
+      - {name: u_mean_lbs, expected: {type: number, value: 4639.0, decimals: 1}, aliases: [u, u_statistic, U-stat], context: ["U", "mean"]}
+    provenance: {source: printed, ref: "cell 41 (LBS_mean U-stat 4639.0, p 2.81e-29)"}
+  - id: a_q1
+    stage_type: answer
+    description: p-value of the Mann-Whitney U test for per-gene median LBS.
+    depends_on: [st_mwu]
+    quantities:
+      - {name: p_median_lbs, expected: {type: number, value: 5.10659e-47, sig_figs: 4}, aliases: [p, p_value], context: ["p", "median"]}
+    provenance: {source: printed, ref: "cell 41 (LBS_median U-stat 177.0, p 5.106590e-47)"}

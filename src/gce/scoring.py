@@ -71,17 +71,26 @@ def _combine(node: Node, results: dict[str, QuantityResult]) -> NodeResult:
     return out
 
 
+def _representative(spec: dict) -> float | None:
+    if spec.get("type") == "range":
+        return (float(spec["min"]) + float(spec["max"])) / 2
+    value = spec.get("value")
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
 def _ambiguous_quantities(graph: Graph) -> set[tuple[str, str]]:
-    """(node, quantity) pairs whose expected value also satisfies another node's expectation."""
+    """(node, quantity) pairs whose expectation is also met by a *different* quantity's reference value
+    elsewhere in the graph. The same quantity repeated on another node (same name and spec, e.g. a
+    result node and the answer node reporting it) is not ambiguous."""
     out = set()
     for node in graph.nodes.values():
         for q in node.quantities:
             for other in graph.nodes.values():
-                if other.id == node.id:
-                    continue
                 for q2 in other.quantities:
-                    value = q2.expected.get("value")
-                    if isinstance(value, (int, float)) and not isinstance(value, bool) and matches(q.expected, value):
+                    if other.id == node.id or (q2.name == q.name and q2.expected == q.expected):
+                        continue
+                    value = _representative(q2.expected)
+                    if value is not None and matches(q.expected, value):
                         out.add((node.id, q.name))
     return out
 

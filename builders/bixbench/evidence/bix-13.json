@@ -1,0 +1,174 @@
+{
+ "sid": "bix-13",
+ "capsule_uuid": "1d54e4a7-8b0f-4224-bd31-efcfded0d46c",
+ "date": "2026-10-08",
+ "returncode": 0,
+ "environment": {
+  "r": "R version 4.3.1 (2023-06-16)",
+  "packages": {
+   "DESeq2": "1.42.1",
+   "apeglm": "1.24.0",
+   "tidyverse": "2.0.0",
+   "rstatix": "0.7.2",
+   "multcomp": "1.4.28"
+  }
+ },
+ "patches": [
+  "setup code before the first cell"
+ ],
+ "checkpoints": {
+  "n_genes_raw": {
+   "value": 5828,
+   "cell": 13
+  },
+  "n_samples_raw": {
+   "value": 36,
+   "cell": 13
+  },
+  "n_samples_kept": {
+   "value": 33,
+   "cell": 18
+  },
+  "excluded_samples": {
+   "value": [
+    "resub-33",
+    "resub-10",
+    "resub-5"
+   ],
+   "cell": 18
+  },
+  "design": {
+   "value": "~Replicate + Strain + Media",
+   "cell": 20
+  },
+  "n_disp_gene_est_lt_1e5": {
+   "value": 7,
+   "cell": 20
+  },
+  "n_disp_final_lt_1e5": {
+   "value": 0,
+   "cell": 20
+  },
+  "n_deg_97": {
+   "value": 2091,
+   "cell": 23
+  },
+  "n_deg_98": {
+   "value": 2910,
+   "cell": 23
+  },
+  "n_deg_99": {
+   "value": 3990,
+   "cell": 23
+  },
+  "venn_fdr005": {
+   "value": {
+    "only_97": 190,
+    "only_98": 166,
+    "only_99": 823,
+    "only_97_98": 41,
+    "only_97_99": 464,
+    "only_98_99": 1307,
+    "all_three": 1396,
+    "union": 4387,
+    "pct_of_union": {
+     "only_97": 4.33,
+     "only_98": 3.78,
+     "only_99": 18.76,
+     "only_97_98": 0.93,
+     "only_97_99": 10.58,
+     "only_98_99": 29.79,
+     "all_three": 31.82
+    }
+   },
+   "cell": 23
+  },
+  "n_deg_lfc15": {
+   "value": {
+    "s97": 179,
+    "s98": 208,
+    "s99": 478
+   },
+   "cell": 23
+  },
+  "venn_fdr005_lfc15": {
+   "value": {
+    "only_97": 16,
+    "only_98": 11,
+    "only_99": 197,
+    "only_97_98": 7,
+    "only_97_99": 91,
+    "only_98_99": 125,
+    "all_three": 65,
+    "union": 512,
+    "pct_of_union": {
+     "only_97": 3.12,
+     "only_98": 2.15,
+     "only_99": 38.48,
+     "only_97_98": 1.37,
+     "only_97_99": 17.77,
+     "only_98_99": 24.41,
+     "all_three": 12.7
+    }
+   },
+   "cell": 23
+  },
+  "q1_lfc15_pct_of_97": {
+   "value": 50.84,
+   "cell": 23
+  }
+ },
+ "anchors": [
+  {
+   "name": "n_genes_raw",
+   "expected": {
+    "type": "integer",
+    "value": 5828
+   },
+   "source": "cell 13 (Rows: 5828)",
+   "observed": 5828,
+   "ok": true
+  },
+  {
+   "name": "n_samples_kept",
+   "expected": {
+    "type": "integer",
+    "value": 33
+   },
+   "source": "cell 18 (36 minus resub-5/10/33)",
+   "observed": 33,
+   "ok": true
+  },
+  {
+   "name": "n_deg_97",
+   "expected": {
+    "type": "integer",
+    "value": 2091
+   },
+   "source": "cell 24 Venn: 190+41+464+1396",
+   "observed": 2091,
+   "ok": true
+  },
+  {
+   "name": "n_deg_98",
+   "expected": {
+    "type": "integer",
+    "value": 2910
+   },
+   "source": "cell 24 Venn: 166+41+1307+1396",
+   "observed": 2910,
+   "ok": true
+  },
+  {
+   "name": "n_deg_99",
+   "expected": {
+    "type": "integer",
+    "value": 3990
+   },
+   "source": "cell 24 Venn: 823+464+1307+1396",
+   "observed": 3990,
+   "ok": true
+  }
+ ],
+ "anchors_ok": true
+}

@@ -1,0 +1,148 @@
+# BixBench v1.5 bix-13: differential expression of P. aeruginosa quorum-sensing mutants vs wild type (DESeq2).
+# Reference: CapsuleNotebook-1d54e4a7 (R). The notebook shows answers only in a Venn diagram (cell 24) and never
+# computes q3; all values here are from builders/bixbench/evidence/bix-13.json (printed anchors reproduced).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-13
+title: Strain-specific differential expression in lasI / rhlI quorum-sensing mutants
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 1d54e4a7-8b0f-4224-bd31-efcfded0d46c
+  archetype: rnaseq_de
+  data: [raw_counts.csv, experiment_metadata.csv]
+  rerun_evidence: builders/bixbench/evidence/bix-13.json
+notes: >-
+  Strains: JBX1 wild type, JBX97 ΔrhlI, JBX98 ΔlasI, JBX99 ΔlasIΔrhlI. The notebook drops three outlier samples
+  (resub-5, resub-10, resub-33) after a PCA, fits ~Replicate + Strain + Media, and calls DE genes at padj < 0.05
+  with no fold-change cutoff. Venn percentages are relative to the union of the three DE sets (4,387 genes).
+  q1's text adds |log2FC| > 1.5; with that filter the same region is 17.77% of the union (50.84% of JBX97's DE
+  genes), so the official 10.6% matches only the notebook's no-cutoff analysis.
+tasks:
+  - id: bix-13-q1
+    answer_node: a_q1
+    question: Percentage of genes DE (|log2FC| > 1.5, FDR < 0.05) in JBX97 that are also DE in JBX99 and in no other strain (relative to JBX1).
+    ideal: {type: percent, value: 10.6, decimals: 1}
+    label_status: mismatch
+    notes: Ideal reproduces only without the stated |log2FC| > 1.5 cutoff (variant node r_venn_lfc gives 17.77% / 50.84%).
+  - id: bix-13-q2
+    answer_node: a_q2
+    question: Number of genes DE only in JBX98 (not in JBX97 or JBX99), BH FDR 0.05.
+    ideal: {type: integer, value: 166}
+    label_status: consistent
+  - id: bix-13-q3
+    answer_node: a_q3
+    question: Number of genes with a dispersion estimate below 1e-05 before shrinkage, design accounting for Replicate, Strain and Media.
+    ideal: {type: integer, value: 7}
+    label_status: consistent
+  - id: bix-13-q4
+    answer_node: a_q4
+    question: Percentage of genes uniquely DE in JBX98 or JBX97.
+    ideal: {type: percent, value: 8.1, decimals: 1}
+    label_status: consistent
+  - id: bix-13-q5
+    answer_node: a_q5
+    question: Number of genes DE in at least one single mutant (ΔlasI or ΔrhlI) but not in the double mutant.
+    ideal: {type: integer, value: 397}
+    label_status: consistent
+nodes:
+  - id: in_counts
+    stage_type: inputs
+    description: Load the raw count matrix (genes x samples) and the sample metadata (strain, media, replicate).
+    quantities:
+      - {name: n_genes, expected: {type: integer, value: 5828}, aliases: [genes, n_rows], context: ["genes?", "rows"]}
+      - {name: n_samples_raw, expected: {type: integer, value: 36}, aliases: [samples, n_columns], context: ["samples?", "columns"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 13 (Rows: 5828 Columns: 37); evidence n_genes_raw"}
+  - id: co_outliers
+    stage_type: cohort
+    description: Exclude the three samples that do not cluster with their replicates (resub-5, resub-10, resub-33), keeping 33 samples.
+    depends_on: [in_counts]
+    hidden: true
+    gating: false
+    quantities:
+      - {name: n_samples_kept, expected: {type: integer, value: 33}, aliases: [n_samples], context: ["samples?", "kept", "after"]}
+    probe:
+      patterns: ["resub-?5\\b", "resub-?33", "outlier"]
+    provenance: {source: rerun, ref: "cell 18; evidence excluded_samples"}
+  - id: md_deseq
+    stage_type: model
+    description: Fit a negative-binomial GLM with design ~ Replicate + Strain + Media and the wild type (JBX1) as reference strain.
+    depends_on: [co_outliers]
+    params: {design: "~ Replicate + Strain + Media", reference: "Strain 1 (JBX1)"}
+    probe:
+      patterns: ["~\\s*Replicate\\s*\\+\\s*Strain\\s*\\+\\s*Media", "design_factors\\s*=\\s*\\[[^\\]]*Replicate", "Replicate.*Strain.*Media"]
+    provenance: {source: rerun, ref: "cells 20-21; evidence design"}
+  - id: r_dispersion
+    stage_type: result_table
+    description: Gene-wise dispersion estimates before shrinkage towards the fitted trend.
+    depends_on: [md_deseq]
+    quantities:
+      - {name: n_disp_gene_est_lt_1e5, expected: {type: integer, value: 7}, aliases: [n_low_dispersion], context: ["dispersion", "1e-0?5"]}
+    provenance: {source: rerun, ref: "evidence n_disp_gene_est_lt_1e5 = 7 (final MAP dispersions: 0)"}
+  - id: a_q3
+    stage_type: answer
+    description: Number of genes with gene-wise dispersion < 1e-05.
+    depends_on: [r_dispersion]
+    quantities:
+      - {name: n_disp_gene_est_lt_1e5, expected: {type: integer, value: 7}}
+    provenance: {source: rerun, ref: "evidence"}
+  - id: r_de_sets
+    stage_type: result_table
+    description: Genes differentially expressed against JBX1 at BH-adjusted p < 0.05 for each mutant (no fold-change cutoff).
+    depends_on: [md_deseq]
+    quantities:
+      - {name: n_deg_97, expected: {type: integer, value: 2091}, aliases: [deg_jbx97, n_de_97], context: ["97", "rhlI"]}
+      - {name: n_deg_98, expected: {type: integer, value: 2910}, aliases: [deg_jbx98, n_de_98], context: ["98", "lasI"]}
+      - {name: n_deg_99, expected: {type: integer, value: 3990}, aliases: [deg_jbx99, n_de_99], context: ["99", "double"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 23; Venn cell 24; evidence n_deg_97/98/99"}
+  - id: r_venn
+    stage_type: downstream
+    description: Overlap regions of the three DE sets (unique and shared genes); union of all DE genes 4,387.
+    depends_on: [r_de_sets]
+    quantities:
+      - {name: union, expected: {type: integer, value: 4387}, aliases: [n_union, total_de], context: ["union", "total", "any"]}
+      - {name: only_97, expected: {type: integer, value: 190}, context: ["97", "rhlI", "unique", "only"]}
+      - {name: only_97_99, expected: {type: integer, value: 464}, context: ["97", "99"]}
+      - {name: all_three, expected: {type: integer, value: 1396}, context: ["all", "three", "common", "shared"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 24 Venn diagram; evidence venn_fdr005"}
+  - id: r_venn_lfc
+    stage_type: downstream
+    description: Overlap regions when DE also requires |log2FC| > 1.5 (the cutoff stated in q1).
+    depends_on: [r_de_sets]
+    variant_of: r_venn
+    gating: false
+    quantities:
+      - {name: union, expected: {type: integer, value: 512}, aliases: [n_union, total_de], context: ["union", "total"]}
+      - {name: only_97_99, expected: {type: integer, value: 91}, context: ["97", "99"]}
+    require: any
+    provenance: {source: rerun, ref: "evidence venn_fdr005_lfc15"}
+  - id: a_q2
+    stage_type: answer
+    description: Genes DE only in JBX98.
+    depends_on: [r_venn]
+    quantities:
+      - {name: only_98, expected: {type: integer, value: 166}, context: ["98", "lasI", "unique", "only"]}
+    provenance: {source: rerun, ref: "evidence venn_fdr005.only_98"}
+  - id: a_q5
+    stage_type: answer
+    description: Genes DE in JBX97 and/or JBX98 but not in JBX99 (190 + 166 + 41).
+    depends_on: [r_venn]
+    quantities:
+      - {name: single_not_double, expected: {type: integer, value: 397}}
+    provenance: {source: rerun, ref: "evidence venn_fdr005"}
+  - id: a_q4
+    stage_type: answer
+    description: Percentage of the DE union that is unique to JBX97 or unique to JBX98 ((190 + 166) / 4387).
+    depends_on: [r_venn]
+    quantities:
+      - {name: pct_unique_97_or_98, expected: {type: percent, value: 8.11, decimals: 1}}
+    provenance: {source: rerun, ref: "evidence venn_fdr005.pct_of_union (4.33 + 3.78)"}
+  - id: a_q1
+    stage_type: answer
+    description: Percentage of the DE union shared by JBX97 and JBX99 only (464 / 4387), as in the notebook.
+    depends_on: [r_venn]
+    quantities:
+      - {name: pct_97_99_only, expected: {type: percent, value: 10.58, decimals: 1}}
+    provenance: {source: rerun, ref: "evidence venn_fdr005.pct_of_union.only_97_99"}

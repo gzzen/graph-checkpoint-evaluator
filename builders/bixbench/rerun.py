@@ -35,12 +35,12 @@ def environment_info(cfg: Config, language: str) -> dict:
                 'for (p in c("DESeq2","apeglm","clusterProfiler","tidyverse","rstatix","multcomp")) '
                 'if (requireNamespace(p, quietly=TRUE)) cat(p, as.character(packageVersion(p)), "\\n")') % cfg.r_library
         out = subprocess.run([cfg.rscript, "-e", code], capture_output=True, text=True).stdout
-        lines = out.strip().splitlines()
+        lines = [l.strip() for l in out.strip().splitlines()]
         return {"r": lines[0] if lines else None, "packages": dict(l.split(" ", 1) for l in lines[1:] if " " in l)}
     out = subprocess.run([str(cfg.python), "-c", "import sys,importlib.metadata as m;print(sys.version.split()[0]);"
                           "[print(p, m.version(p)) for p in ('pandas','numpy','scipy','statsmodels','pydeseq2','gseapy') if __import__('importlib.util').util.find_spec(p.replace('-','_'))]"],
                          capture_output=True, text=True).stdout
-    lines = out.strip().splitlines()
+    lines = [l.strip() for l in out.strip().splitlines()]
     return {"python": lines[0] if lines else None, "packages": dict(l.split(" ", 1) for l in lines[1:] if " " in l)}
 
 

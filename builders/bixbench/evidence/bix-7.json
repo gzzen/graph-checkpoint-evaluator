@@ -1,0 +1,174 @@
+{
+ "sid": "bix-7",
+ "capsule_uuid": "a02b761a-02b6-46b5-9d5e-2964d5a74960",
+ "date": "2026-10-08",
+ "returncode": 0,
+ "environment": {
+  "r": "R version 4.3.1 (2023-06-16)",
+  "packages": {
+   "DESeq2": "1.42.1",
+   "apeglm": "1.24.0",
+   "tidyverse": "2.0.0",
+   "rstatix": "0.7.2",
+   "multcomp": "1.4.28"
+  }
+ },
+ "patches": [
+  "cell 8: unanchored regex also matched the *.xlsx.checksum files shipped in CapsuleData",
+  "setup code before the first cell"
+ ],
+ "checkpoints": {
+  "n_files": {
+   "value": 86,
+   "cell": 14
+  },
+  "n_samples_grouped": {
+   "value": 86,
+   "cell": 14
+  },
+  "n_variants_all": {
+   "value": 57258,
+   "cell": 14
+  },
+  "n_nonref": {
+   "value": 11896,
+   "cell": 15
+  },
+  "n_nonref_exome": {
+   "value": 4550,
+   "cell": 16
+  },
+  "n_samples_with_exome_variants": {
+   "value": 86,
+   "cell": 16
+  },
+  "mean_exome_variants_per_sample": {
+   "value": 52.906976744186,
+   "cell": 16
+  },
+  "n_samples_in_plot": {
+   "value": 86,
+   "cell": 18
+  },
+  "group_sizes": {
+   "value": {
+    "BLM Carriers": 19,
+    "BSyn Probands": 10,
+    "Control Children": 19,
+    "Control Parents": 38
+   },
+   "cell": 19
+  },
+  "group_means": {
+   "value": {
+    "BLM Carriers": 51.7368421052632,
+    "BSyn Probands": 50.9,
+    "Control Children": 53.6842105263158,
+    "Control Parents": 53.6315789473684
+   },
+   "cell": 19
+  },
+  "anova_p": {
+   "value": 0.464,
+   "cell": 19
+  },
+  "anova_F": {
+   "value": 0.863,
+   "cell": 19
+  },
+  "pairwise_bonferroni": {
+   "value": [
+    {
+     "group1": "BLM Carriers",
+     "group2": "BSyn Probands",
+     "p": 0.728,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    },
+    {
+     "group1": "BLM Carriers",
+     "group2": "Control Children",
+     "p": 0.331,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    },
+    {
+     "group1": "BSyn Probands",
+     "group2": "Control Children",
+     "p": 0.249,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    },
+    {
+     "group1": "BLM Carriers",
+     "group2": "Control Parents",
+     "p": 0.276,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    },
+    {
+     "group1": "BSyn Probands",
+     "group2": "Control Parents",
+     "p": 0.215,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    },
+    {
+     "group1": "Control Children",
+     "group2": "Control Parents",
+     "p": 0.976,
+     "p.adj": 1,
+     "p.adj.signif": "ns"
+    }
+   ],
+   "cell": 19
+  },
+  "n_blm_groups_sig_vs_control": {
+   "value": 0,
+   "cell": 19
+  }
+ },
+ "anchors": [
+  {
+   "name": "n_files",
+   "expected": {
+    "type": "integer",
+    "value": 86
+   },
+   "source": "cell 8 comment: 86 files",
+   "observed": 86,
+   "ok": true
+  },
+  {
+   "name": "n_variants_all",
+   "expected": {
+    "type": "integer",
+    "value": 57258
+   },
+   "source": "cell 14 comment",
+   "observed": 57258,
+   "ok": true
+  },
+  {
+   "name": "n_nonref",
+   "expected": {
+    "type": "integer",
+    "value": 11896
+   },
+   "source": "cell 15 output",
+   "observed": 11896,
+   "ok": true
+  },
+  {
+   "name": "n_nonref_exome",
+   "expected": {
+    "type": "integer",
+    "value": 4550
+   },
+   "source": "cell 16 output",
+   "observed": 4550,
+   "ok": true
+  }
+ ],
+ "anchors_ok": true
+}

@@ -1,0 +1,199 @@
+# BixBench v1.5 bix-10: BCG re-vaccination and COVID-19 severity among healthcare workers.
+# Reference: CapsuleNotebook-fbe0e950 (Python). All values below are printed in the notebook (cell refs).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-10
+title: BCG re-vaccination and COVID-19 severity (chi-square subgroup tests, ordinal logistic regression)
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: fbe0e950-76f2-4eb7-a216-a2d377970922
+  archetype: tabular_stats
+  data: [TASK008_BCG-CORONA_AE.csv, TASK008_BCG-CORONA_DM.csv, TASK008_BCG-CORONA_EX.csv]
+notes: >-
+  Severity is the per-subject maximum of AESEV over adverse events; subjects with any missing AESEV/AEHS are
+  dropped (791 analysed). Chi-square tests use the full 4-level AESEV x treatment table (dof 3) within each
+  subgroup. The ordinal model enters patients_seen as one label-encoded covariate (0, 1, 2).
+tasks:
+  - id: bix-10-q1
+    answer_node: a_q1
+    question: Odds ratio of higher severity (AESEV) for BCG vaccination in an ordinal logistic model with patient interaction covariates.
+    ideal: {type: range, min: 1.50, max: 1.54}
+    label_status: consistent
+  - id: bix-10-q2
+    answer_node: a_q2
+    question: Odds ratio for expected patient interaction (expect_interact_cat) in the ordinal model adjusted for patients seen and BCG status.
+    ideal: {type: range, min: 0.74, max: 0.77}
+    label_status: consistent
+  - id: bix-10-q3
+    answer_node: a_q3
+    question: Patient-volume group with a significant (p<0.05) chi-square difference in severity between BCG and placebo.
+    ideal: {type: label, value: "1-50"}
+    label_status: consistent
+  - id: bix-10-q4
+    answer_node: a_q4
+    question: Chi-square p-value for BCG vs severity among workers who expect to interact with patients.
+    ideal: {type: range, min: 0.024, max: 0.026}
+    label_status: consistent
+  - id: bix-10-q5
+    answer_node: a_q5
+    question: Chi-square p-value for vaccination vs severity among workers seeing over 100 patients.
+    ideal: {type: range, min: 0.43, max: 0.45}
+    label_status: consistent
+  - id: bix-10-q6
+    answer_node: a_q6
+    question: Chi-square p-value for BCG vs severity among workers seeing 1-50 patients.
+    ideal: {type: range, min: 0.023, max: 0.025}
+    label_status: consistent
+  - id: bix-10-q7
+    answer_node: a_q7
+    question: Percentage reduction in the odds of higher severity for workers expected to interact with patients, adjusted for BCG and patients seen.
+    ideal: {type: range, min: 24, max: 26}
+    label_status: consistent
+nodes:
+  - id: in_tables
+    stage_type: inputs
+    description: Load the adverse-event (AE) records and the demographics (DM) table.
+    quantities:
+      - {name: ae_records, expected: {type: integer, value: 2694}, aliases: [n_ae_records, ae_rows, adverse_events], context: ["AE", "adverse", "record", "rows"]}
+      - {name: dm_subjects, expected: {type: integer, value: 1000}, aliases: [dm_rows, n_dm], context: ["DM", "demograph", "subjects?", "rows"]}
+    require: any
+    provenance: {source: printed, ref: "cells 11, 13 ([2694 rows x 51 columns], [1000 rows x 11 columns])"}
+  - id: co_subject
+    stage_type: cohort
+    description: Collapse adverse events to one row per subject using the subject's maximum severity (AESEV), then attach the DM variables patients_seen and expect_interact.
+    depends_on: [in_tables]
+    hidden: true
+    params: {aggregation: "max AESEV per USUBJID"}
+    quantities:
+      - {name: n_subjects, expected: {type: integer, value: 1000}, aliases: [subjects, n_participants, n_unique_subjects], context: ["subject", "participant", "USUBJID", "unique"]}
+    provenance: {source: printed, ref: "cells 17-22 ([1000 rows x 7 columns])"}
+  - id: co_complete
+    stage_type: cohort
+    description: Analyse subjects with non-missing severity (complete cases), split by treatment group.
+    depends_on: [co_subject]
+    hidden: true
+    params: {missing: "dropna over AESEV and AEHS; 209 subjects without AESEV removed"}
+    quantities:
+      - {name: n_analysed, expected: {type: integer, value: 791}, aliases: [n_complete, n_obs, observations, n_analyzed], context: ["Observations", "analy[sz]", "complete", "rows", "subjects"]}
+      - {name: n_bcg, expected: {type: integer, value: 437}, aliases: [bcg_n, n_bcg_group], context: ["BCG"]}
+      - {name: n_placebo, expected: {type: integer, value: 354}, aliases: [placebo_n, n_placebo_group], context: ["Placebo"]}
+    require: any
+    provenance: {source: printed, ref: "cells 25, 29, 41 (No. Observations: 791; BCG 437, Placebo 354)"}
+  - id: st_chisq
+    stage_type: model
+    description: Chi-square test of independence between severity level (all AESEV levels) and treatment group (BCG vs placebo), run separately within each subgroup.
+    depends_on: [co_complete]
+    params: {table: "AESEV levels x TRTGRP", dof: 3}
+    probe:
+      patterns: ["chi2_contingency", "chisq\\.test", "chi-?square"]
+    provenance: {source: printed, ref: "cells 35-36"}
+  - id: r_chisq_expect_yes
+    stage_type: result_table
+    description: Chi-square statistic in the subgroup expected to interact with patients (expect_interact == Yes).
+    depends_on: [st_chisq]
+    quantities:
+      - {name: chi2_expect_yes, expected: {type: number, value: 9.3151, abs_tol: 0.01}, aliases: [chi2, chi_square], context: ["chi", "Yes", "expect"]}
+    provenance: {source: printed, ref: "cell 35 (Chi2=9.315, p=0.02538, dof=3)"}
+  - id: r_chisq_seen_1_50
+    stage_type: result_table
+    description: Chi-square statistic in the subgroup seeing 1-50 patients.
+    depends_on: [st_chisq]
+    quantities:
+      - {name: chi2_seen_1_50, expected: {type: number, value: 9.4207, abs_tol: 0.01}, aliases: [chi2, chi_square], context: ["chi", "1-50"]}
+    provenance: {source: printed, ref: "cell 36 (Chi2=9.4207, p=0.02419, dof=3)"}
+  - id: r_chisq_seen_51_100
+    stage_type: result_table
+    description: Chi-square test in the subgroup seeing 51-100 patients (not significant).
+    depends_on: [st_chisq]
+    quantities:
+      - {name: chi2_seen_51_100, expected: {type: number, value: 3.4530, abs_tol: 0.01}, aliases: [chi2, chi_square], context: ["chi", "51-100"]}
+      - {name: p_seen_51_100, expected: {type: number, value: 0.3269, abs_tol: 0.001}, aliases: [p, p_value], context: ["p", "51-100"]}
+    require: any
+    provenance: {source: printed, ref: "cell 36 (Chi2=3.4530, p=0.3269)"}
+  - id: r_chisq_seen_gt100
+    stage_type: result_table
+    description: Chi-square statistic in the subgroup seeing more than 100 patients.
+    depends_on: [st_chisq]
+    quantities:
+      - {name: chi2_seen_gt100, expected: {type: number, value: 2.6786, abs_tol: 0.01}, aliases: [chi2, chi_square], context: ["chi", ">\\s*100", "over 100"]}
+    provenance: {source: printed, ref: "cell 36 (Chi2=2.6786, p=0.4439)"}
+  - id: a_q4
+    stage_type: answer
+    description: p-value of the chi-square test in the expect_interact == Yes subgroup.
+    depends_on: [r_chisq_expect_yes]
+    quantities:
+      - {name: p_expect_yes, expected: {type: range, min: 0.024, max: 0.026}, aliases: [p, p_value], context: ["p", "Yes", "expect"]}
+    provenance: {source: printed, ref: "cell 35"}
+  - id: a_q6
+    stage_type: answer
+    description: p-value of the chi-square test in the 1-50 patients-seen subgroup.
+    depends_on: [r_chisq_seen_1_50]
+    quantities:
+      - {name: p_seen_1_50, expected: {type: range, min: 0.023, max: 0.025}, aliases: [p, p_value], context: ["p", "1-50"]}
+    provenance: {source: printed, ref: "cell 36"}
+  - id: a_q5
+    stage_type: answer
+    description: p-value of the chi-square test in the >100 patients-seen subgroup.
+    depends_on: [r_chisq_seen_gt100]
+    quantities:
+      - {name: p_seen_gt100, expected: {type: range, min: 0.43, max: 0.45}, aliases: [p, p_value], context: ["p", ">\\s*100", "over 100"]}
+    provenance: {source: printed, ref: "cell 36"}
+  - id: a_q3
+    stage_type: answer
+    description: The patients-seen subgroup with p < 0.05 (only 1-50).
+    depends_on: [r_chisq_seen_1_50, r_chisq_seen_51_100, r_chisq_seen_gt100]
+    quantities:
+      - {name: significant_group, expected: {type: label, value: "1-50", synonyms: ["1 to 50", "1-50 patients"]}}
+    provenance: {source: printed, ref: "cell 36, markdown cell 38"}
+  - id: tf_coding
+    stage_type: transform
+    description: Encode covariates numerically, with patients_seen as one ordinal covariate (1-50=0, 51-100=1, >100=2) rather than dummy variables.
+    depends_on: [co_complete]
+    hidden: true
+    gating: false
+    probe:
+      patterns: ["LabelEncoder", "cat\\.codes", "patients_seen.*(map|replace)\\(", "as\\.numeric\\(.*patients_seen"]
+    provenance: {source: printed, ref: "cell 30"}
+  - id: md_ordinal
+    stage_type: model
+    description: Proportional-odds (ordered logit) regression of severity on BCG vaccination, expected patient interaction and number of patients seen.
+    depends_on: [co_complete, tf_coding]
+    params: {response: AESEV, covariates: [TRTGRP (BCG=1), expect_interact (Yes=1), patients_seen (ordinal)], link: logit}
+    probe:
+      patterns: ["OrderedModel", "polr\\(", "clm\\(", "ologit", "ordered.?logit", "LogisticAT", "ordinal logistic"]
+    provenance: {source: printed, ref: "cells 40-41 (OrderedModel, distr='logit')"}
+  - id: r_or_bcg
+    stage_type: result_table
+    description: Odds ratio for BCG vaccination from the ordinal model.
+    depends_on: [md_ordinal]
+    quantities:
+      - {name: or_bcg, expected: {type: range, min: 1.50, max: 1.54}, aliases: [odds_ratio_bcg, or_trtgrp, TRTGRP_cat], context: ["TRTGRP", "BCG", "vacc"]}
+    provenance: {source: printed, ref: "cell 42 (TRTGRP_cat OR 1.524242)"}
+  - id: r_or_expect
+    stage_type: result_table
+    description: Odds ratio for expected patient interaction from the ordinal model.
+    depends_on: [md_ordinal]
+    quantities:
+      - {name: or_expect_interact, expected: {type: range, min: 0.74, max: 0.77}, aliases: [odds_ratio_expect_interact, expect_interact_cat], context: ["expect", "interact"]}
+    provenance: {source: printed, ref: "cell 42 (expect_interact_cat OR 0.754981)"}
+  - id: a_q1
+    stage_type: answer
+    description: Odds ratio for BCG vaccination.
+    depends_on: [r_or_bcg]
+    quantities:
+      - {name: or_bcg, expected: {type: range, min: 1.50, max: 1.54}}
+    provenance: {source: printed, ref: "cell 42"}
+  - id: a_q2
+    stage_type: answer
+    description: Odds ratio for expected patient interaction.
+    depends_on: [r_or_expect]
+    quantities:
+      - {name: or_expect_interact, expected: {type: range, min: 0.74, max: 0.77}}
+    provenance: {source: printed, ref: "cell 42"}
+  - id: a_q7
+    stage_type: answer
+    description: Percentage reduction in odds for expected interaction, (1 - OR) x 100.
+    depends_on: [r_or_expect]
+    quantities:
+      - {name: pct_reduction, expected: {type: range, min: 24, max: 26}, context: ["reduc", "%"]}
+    provenance: {source: derived, ref: "(1 - 0.754981) x 100 = 24.5"}

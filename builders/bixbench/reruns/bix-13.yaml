@@ -1,0 +1,45 @@
+# Re-run of bix-13 (P. aeruginosa quorum-sensing mutants, DESeq2). Every answer of this capsule exists only in a
+# Venn diagram (cell 24) or is not computed at all (q3: dispersion estimates), so all values come from here.
+language: R
+setup: |
+  suppressPackageStartupMessages({library(tidyverse); library(DESeq2)})
+drop_cells: [5, 16, 17, 22, 24]   # rpy2 example, plot theme, PCA plot, rlog heatmap (slow, visual only), Venn plot
+insert_after:
+  13: |
+    gce_checkpoint("n_genes_raw", nrow(counts_raw), cell = 13)
+    gce_checkpoint("n_samples_raw", ncol(counts_raw) - 1, cell = 13)
+  18: |
+    gce_checkpoint("n_samples_kept", ncol(counts) - 1, cell = 18)
+    gce_checkpoint("excluded_samples", setdiff(colnames(counts_raw), colnames(counts)), cell = 18)
+  20: |
+    gce_checkpoint("design", paste(deparse(design(dds)), collapse = ""), cell = 20)
+    gce_checkpoint("n_disp_gene_est_lt_1e5", sum(mcols(dds)$dispGeneEst < 1e-5, na.rm = TRUE), cell = 20)
+    gce_checkpoint("n_disp_final_lt_1e5", sum(dispersions(dds) < 1e-5, na.rm = TRUE), cell = 20)
+  23: |
+    sets <- list(s97 = sig_1vs97$rowname, s98 = sig_1vs98$rowname, s99 = sig_1vs99$rowname)
+    gce_checkpoint("n_deg_97", length(sets$s97), cell = 23)
+    gce_checkpoint("n_deg_98", length(sets$s98), cell = 23)
+    gce_checkpoint("n_deg_99", length(sets$s99), cell = 23)
+    venn <- function(a, b, c) {
+      u <- union(union(a, b), c)
+      r <- list(
+        only_97 = setdiff(a, union(b, c)), only_98 = setdiff(b, union(a, c)), only_99 = setdiff(c, union(a, b)),
+        only_97_98 = setdiff(intersect(a, b), c), only_97_99 = setdiff(intersect(a, c), b),
+        only_98_99 = setdiff(intersect(b, c), a), all_three = intersect(intersect(a, b), c))
+      counts <- lapply(r, length)
+      c(counts, list(union = length(u), pct_of_union = lapply(counts, function(n) round(100 * n / length(u), 2))))
+    }
+    gce_checkpoint("venn_fdr005", venn(sets$s97, sets$s98, sets$s99), cell = 23)
+    lfc <- function(res) rownames(res)[!is.na(res$padj) & res$padj < 0.05 & abs(res$log2FoldChange) > 1.5]
+    l97 <- lfc(results_1vs97); l98 <- lfc(results_1vs98); l99 <- lfc(results_1vs99)
+    gce_checkpoint("n_deg_lfc15", list(s97 = length(l97), s98 = length(l98), s99 = length(l99)), cell = 23)
+    v <- venn(l97, l98, l99)
+    gce_checkpoint("venn_fdr005_lfc15", v, cell = 23)
+    gce_checkpoint("q1_lfc15_pct_of_97", round(100 * v$only_97_99 / length(l97), 2), cell = 23)
+anchors:
+  - {name: n_genes_raw, expected: {type: integer, value: 5828}, source: "cell 13 (Rows: 5828)"}
+  - {name: n_samples_kept, expected: {type: integer, value: 33}, source: "cell 18 (36 minus resub-5/10/33)"}
+  - {name: n_deg_97, expected: {type: integer, value: 2091}, source: "cell 24 Venn: 190+41+464+1396"}
+  - {name: n_deg_98, expected: {type: integer, value: 2910}, source: "cell 24 Venn: 166+41+1307+1396"}
+  - {name: n_deg_99, expected: {type: integer, value: 3990}, source: "cell 24 Venn: 823+464+1307+1396"}
+timeout: 1800

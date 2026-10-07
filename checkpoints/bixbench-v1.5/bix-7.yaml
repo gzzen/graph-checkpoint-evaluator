@@ -1,0 +1,116 @@
+# BixBench v1.5 bix-7: CHIP variant burden in Bloom syndrome trios and controls.
+# Reference: CapsuleNotebook-a02b761a (R). The statistics cell has no saved output; values marked `rerun` come
+# from builders/bixbench/evidence/bix-7.json (all printed anchors reproduced).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-7
+title: CHIP variant counts per sample across BLM mutation status groups
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: a02b761a-02b6-46b5-9d5e-2964d5a74960
+  archetype: chip_variants
+  data: ["230215_Trio_Status.xlsx", "230214_Schenz_et_al_2022_CHIP_Genes.xlsx", "CHIP_DP10_GQ20_PASS/*.xlsx (86 samples)"]
+  rerun_evidence: builders/bixbench/evidence/bix-7.json
+notes: >-
+  Shared upstream ladder with bix-2/14/17/20/39/47 (86 variant files -> 57,258 calls -> 11,896 non-reference ->
+  4,550 exonic). Unaffected samples are split by family role into control children and control parents.
+tasks:
+  - id: bix-7-q1
+    answer_node: a_q1
+    question: Focusing on non-reference exome variants, how many BLM mutation status groups have significantly different CHIP variant frequency compared to control?
+    ideal: {type: integer, value: 0}
+    label_status: consistent
+  - id: bix-7-q2
+    answer_node: a_q2
+    question: Average number of CHIP variants per sample after filtering out intronic, intergenic and UTR variants.
+    ideal: {type: range, min: 40, max: 60}
+    label_status: consistent
+  - id: bix-7-q3
+    answer_node: a_q3
+    question: Number of CHIP variants remaining after removing reference calls.
+    ideal: {type: range, min: 10000, max: 20000}
+    label_status: consistent
+nodes:
+  - id: in_variants
+    stage_type: inputs
+    description: Read the per-sample variant tables (one file per sample) and combine them into one table of variant calls.
+    quantities:
+      - {name: n_sample_files, expected: {type: integer, value: 86}, aliases: [n_files, n_samples], context: ["files?", "samples?"]}
+      - {name: n_variant_calls, expected: {type: integer, value: 57258}, aliases: [n_variants_all, total_variants, n_calls], context: ["variants?", "calls?", "rows"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 14 (comment: 57258 variants from 86 samples); evidence n_variants_all"}
+  - id: co_groups
+    stage_type: cohort
+    description: Assign each sample to a BLM status group; unaffected samples become control children or control parents by family role.
+    depends_on: [in_variants]
+    hidden: true
+    params: {groups: [BSyn Probands, BLM Carriers, Control Children, Control Parents], excluded: "sample 533 (no variant file)"}
+    quantities:
+      - {name: n_blm_carriers, expected: {type: integer, value: 19}, aliases: [carriers], context: ["carrier"]}
+      - {name: n_bsyn_probands, expected: {type: integer, value: 10}, aliases: [probands, affected], context: ["proband", "BSyn", "affected"]}
+      - {name: n_control_children, expected: {type: integer, value: 19}, aliases: [control_children], context: ["child"]}
+      - {name: n_control_parents, expected: {type: integer, value: 38}, aliases: [control_parents], context: ["parent"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 17; evidence group_sizes"}
+  - id: fl_nonref
+    stage_type: filter
+    description: Remove reference calls (keep variants whose zygosity is not "Reference").
+    depends_on: [in_variants]
+    quantities:
+      - {name: n_nonref_variants, expected: {type: integer, value: 11896}, aliases: [n_nonref, nonref_variants], context: ["non-?ref", "variants?", "remain"]}
+    provenance: {source: printed, ref: "cell 15 output"}
+  - id: fl_exome
+    stage_type: filter
+    description: Drop intronic, intergenic, 3' UTR and 5' UTR variants from the non-reference calls.
+    depends_on: [fl_nonref]
+    quantities:
+      - {name: n_nonref_exome_variants, expected: {type: integer, value: 4550}, aliases: [n_nonref_exome, exonic_variants, n_exome], context: ["exo", "variants?", "remain", "filter"]}
+    provenance: {source: printed, ref: "cell 16 output"}
+  - id: a_q3
+    stage_type: answer
+    description: Number of non-reference variants.
+    depends_on: [fl_nonref]
+    quantities:
+      - {name: n_nonref_variants, expected: {type: range, min: 10000, max: 20000}}
+    provenance: {source: printed, ref: "cell 15 (11896)"}
+  - id: a_q2
+    stage_type: answer
+    description: Mean number of non-reference exonic CHIP variants per sample (4550 / 86).
+    depends_on: [fl_exome]
+    quantities:
+      - {name: mean_variants_per_sample, expected: {type: range, min: 40, max: 60}, context: ["mean", "average", "per sample"]}
+    provenance: {source: rerun, ref: "evidence mean_exome_variants_per_sample = 52.907"}
+  - id: r_counts
+    stage_type: result_table
+    description: Per-sample count of non-reference exonic variants, summarised by group.
+    depends_on: [fl_exome, co_groups]
+    quantities:
+      - {name: mean_blm_carriers, expected: {type: number, value: 51.74, decimals: 1}, context: ["carrier"]}
+      - {name: mean_bsyn_probands, expected: {type: number, value: 50.9, decimals: 1}, context: ["proband", "BSyn"]}
+      - {name: mean_control_children, expected: {type: number, value: 53.68, decimals: 1}, context: ["child"]}
+      - {name: mean_control_parents, expected: {type: number, value: 53.63, decimals: 1}, context: ["parent"]}
+    require: any
+    provenance: {source: rerun, ref: "cell 19 tapply summary; evidence group_means"}
+  - id: st_tests
+    stage_type: model
+    description: Compare per-sample variant counts across groups with a one-way ANOVA and pairwise t-tests corrected for multiple testing (Bonferroni).
+    depends_on: [r_counts]
+    probe:
+      patterns: ["anova", "aov\\(", "f_oneway", "pairwise_t_test", "pairwise\\.t\\.test", "ttest_ind", "t\\.test\\(", "tukey", "kruskal"]
+    provenance: {source: rerun, ref: "cell 19"}
+  - id: r_tests
+    stage_type: result_table
+    description: ANOVA across the four groups is not significant; no pairwise comparison survives correction.
+    depends_on: [st_tests]
+    quantities:
+      - {name: anova_p, expected: {type: number, value: 0.464, abs_tol: 0.005}, aliases: [p_anova], context: ["anova", "F", "p"]}
+      - {name: anova_F, expected: {type: number, value: 0.863, abs_tol: 0.005}, aliases: [F, f_statistic], context: ["F", "anova"]}
+    require: any
+    provenance: {source: rerun, ref: "evidence anova_p, anova_F, pairwise_bonferroni (all p.adj = 1)"}
+  - id: a_q1
+    stage_type: answer
+    description: Number of BLM status groups (probands, carriers) significantly different from controls.
+    depends_on: [r_tests]
+    quantities:
+      - {name: n_groups_significant, expected: {type: integer, value: 0}}
+    provenance: {source: rerun, ref: "evidence n_blm_groups_sig_vs_control = 0"}

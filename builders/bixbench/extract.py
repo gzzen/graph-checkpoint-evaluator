@@ -3,6 +3,7 @@
 A re-run spec (`reruns/<sid>.yaml`) controls the conversion:
 
     language: R | python
+    setup: 'library(readxl)'           # runs before the first cell (out-of-order notebooks)
     drop_cells: [5]                    # template examples, installs, plotting-only cells
     patches:                           # literal replacements; each must apply exactly once
       - {cell: 13, find: "...", replace: "...", why: "..."}
@@ -87,6 +88,9 @@ def build_script(cells: list[Cell], spec: dict, data_dir: Path, r_library: Path)
 
     prelude = (R_PRELUDE if language == "R" else PY_PRELUDE).format(r_library=str(r_library), data_dir=str(data_dir))
     parts = [prelude]
+    if spec.get("setup"):  # e.g. libraries a notebook loaded in a later cell than it used them
+        parts.append(spec["setup"])
+        applied.append("setup code before the first cell")
     for index in sorted(sources):
         if index in drop:
             continue

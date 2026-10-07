@@ -9,15 +9,18 @@ dir.create(lib, recursive = TRUE, showWarnings = FALSE)
 options(repos = c(CRAN = "https://cloud.r-project.org"), Ncpus = 4, timeout = 600)
 
 cran <- c("BiocManager", "tidyverse", "readxl", "jsonlite", "rstatix", "multcomp", "DescTools",
-          "ggvenn", "pheatmap", "broom", "viridis", "RColorBrewer", "ggpubr")
+          "ggvenn", "pheatmap", "broom", "viridis", "RColorBrewer", "ggpubr",
+          "RSQLite", "emdbook")  # RSQLite: AnnotationDbi/org.Hs.eg.db; emdbook: apeglm
 bioc <- c("DESeq2", "apeglm", "clusterProfiler", "org.Hs.eg.db", "enrichplot")
 
-missing <- function(pkgs) pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+loads <- function(p) tryCatch({ loadNamespace(p); TRUE }, error = function(e) FALSE)
+missing <- function(pkgs) pkgs[!vapply(pkgs, loads, logical(1))]
 for (attempt in 1:3) {  # downloads occasionally fail with transient SSL errors
   todo_cran <- missing(cran)
   if (length(todo_cran)) install.packages(todo_cran, lib = lib)
   todo_bioc <- missing(bioc)
-  if (length(todo_bioc)) BiocManager::install(todo_bioc, lib = lib, update = FALSE, ask = FALSE)
+  # force: a package can be installed yet unloadable when a dependency download failed earlier
+  if (length(todo_bioc)) BiocManager::install(todo_bioc, lib = lib, update = FALSE, ask = FALSE, force = TRUE)
   if (!length(missing(c(cran, bioc)))) break
 }
 still <- missing(c(cran, bioc))

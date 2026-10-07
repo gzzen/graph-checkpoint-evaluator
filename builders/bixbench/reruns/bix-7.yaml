@@ -1,0 +1,41 @@
+# Re-run of bix-7 (CHIP variants in Bloom syndrome trios). The notebook's statistics cell (19) has no
+# saved output, so q1 (groups differing from controls) is recovered here.
+language: R
+setup: |
+  suppressPackageStartupMessages({library(readxl); library(tidyverse); library(rstatix)})
+patches:
+  - cell: 8
+    find: 'pattern = "*.xlsx",'
+    replace: 'pattern = "\\.xlsx$",'
+    why: "unanchored regex also matched the *.xlsx.checksum files shipped in CapsuleData"
+insert_after:
+  14: |
+    gce_checkpoint("n_files", length(files), cell = 14)
+    gce_checkpoint("n_samples_grouped", nrow(samplegrouping), cell = 14)
+    gce_checkpoint("n_variants_all", nrow(full_dataset), cell = 14)
+  15: |
+    gce_checkpoint("n_nonref", nrow(nonref_CHIP_dataset), cell = 15)
+  16: |
+    gce_checkpoint("n_nonref_exome", nrow(nonref_exome_CHIP_dataset), cell = 16)
+    gce_checkpoint("n_samples_with_exome_variants", length(unique(nonref_exome_CHIP_dataset$sample)), cell = 16)
+    gce_checkpoint("mean_exome_variants_per_sample", nrow(nonref_exome_CHIP_dataset) / nrow(samplegrouping), cell = 16)
+  18: |
+    gce_checkpoint("n_samples_in_plot", nrow(forPlot), cell = 18)
+  19: |
+    gce_checkpoint("group_sizes", as.list(table(forPlot$BLM_Status)), cell = 19)
+    gce_checkpoint("group_means", as.list(tapply(forPlot$Freq, forPlot$BLM_Status, mean)), cell = 19)
+    gce_checkpoint("anova_p", res.aov$p, cell = 19)
+    gce_checkpoint("anova_F", res.aov$F, cell = 19)
+    pw <- as.data.frame(pwc[, c("group1", "group2", "p", "p.adj", "p.adj.signif")])
+    gce_checkpoint("pairwise_bonferroni", pw, cell = 19)
+    controls <- c("Control Children", "Control Parents")
+    vs_control <- pw[xor(pw$group1 %in% controls, pw$group2 %in% controls), ]
+    gce_checkpoint("n_blm_groups_sig_vs_control", length(unique(c(
+      vs_control$group1[vs_control$p.adj < 0.05 & !vs_control$group1 %in% controls],
+      vs_control$group2[vs_control$p.adj < 0.05 & !vs_control$group2 %in% controls]))), cell = 19)
+anchors:
+  - {name: n_files, expected: {type: integer, value: 86}, source: "cell 8 comment: 86 files"}
+  - {name: n_variants_all, expected: {type: integer, value: 57258}, source: "cell 14 comment"}
+  - {name: n_nonref, expected: {type: integer, value: 11896}, source: "cell 15 output"}
+  - {name: n_nonref_exome, expected: {type: integer, value: 4550}, source: "cell 16 output"}
+timeout: 900
