@@ -172,3 +172,14 @@ class Graph:
 
     def to_dict(self) -> dict[str, Any]:
         return self.raw
+
+
+def load_graphs(paths: list[str | Path]) -> list[Graph]:
+    """Load graphs from files and/or directories (all *.yaml, *.yml and *.json inside)."""
+    files: list[Path] = []
+    for p in map(Path, paths):
+        if p.is_dir():
+            files += sorted(f for f in p.rglob("*") if f.suffix.lower() in {".yaml", ".yml", ".json"})
+        else:
+            files.append(p)
+    return [Graph.load(f) for f in files]
