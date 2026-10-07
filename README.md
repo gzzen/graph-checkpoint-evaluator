@@ -57,7 +57,11 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce validate checkpoints/bixbench-v1.5/*.yaml
 .venv/bin/gce adapt --adapter canonical_dir --run-root path/to/runs --out out/traces
 .venv/bin/gce score --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
+.venv/bin/gce report --evals out/eval --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
+
+`gce score --judge anthropic` enables the optional LLM judge for semantic checkpoints (install
+`.[llm]`). It calls `claude-opus-5-5` with server-side refusal fallbacks enabled.
 
 When the checkout lives in an iCloud-synced folder (e.g. `~/Documents`), sync can mark the
 editable-install `.pth` file hidden, and Python 3.12+ then skips it (`import gce` fails). Keep the

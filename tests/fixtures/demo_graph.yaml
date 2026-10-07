@@ -35,7 +35,6 @@ nodes:
     description: Keep all samples (no exclusion).
     depends_on: [n_load]
     variant_of: n_cohort
-    gating: false
     quantities:
       - {name: n_samples, expected: {type: integer, value: 100}, aliases: [n_kept, samples_used], context: ["sample"]}
     provenance: {source: derived}

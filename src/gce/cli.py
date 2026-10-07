@@ -89,6 +89,54 @@ def cmd_adapter_check(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _trace_files(paths: list[str]) -> list[Path]:
+    files: list[Path] = []
+    for p in map(Path, paths):
+        files += sorted(p.rglob("*.json")) if p.is_dir() else [p]
+    return files
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    from .probes.judge import load_judge
+    from .scoring import Scorer
+    from .trace import Trace
+
+    graphs = load_graphs(args.graphs)
+    group_of = {task: g for g in graphs for task in g.tasks}
+    scorers = {g.group_id: Scorer(g, load_judge(args.judge)) for g in graphs}
+    out = Path(args.out)
+    written = skipped = 0
+    for path in _trace_files(args.traces):
+        doc = load_doc(path)
+        if detect_kind(doc) != "trace":
+            continue
+        errors = schema_errors(doc, "trace")
+        if errors:
+            print(f"SKIP {path}: invalid trace: {errors[0]}", file=sys.stderr)
+            skipped += 1
+            continue
+        trace = Trace.from_dict(doc)
+        groups = sorted({group_of[t].group_id for t in trace.tasks_covered if t in group_of})
+        if not groups:
+            skipped += 1
+            continue
+        for group_id in groups:
+            result = scorers[group_id].evaluate(trace)
+            dump_json(result, out / f"{safe_name(trace.run_unit_id)}__{safe_name(group_id)}.eval.json")
+            written += 1
+    print(f"wrote {written} evaluations to {out} ({skipped} traces skipped: invalid or no known task)")
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    from .report import load_evaluations, write_report
+
+    evals = load_evaluations(args.evals)
+    out = write_report(evals, args.out)
+    print(f"report for {len(evals)} evaluations in {out}/ (summary.md, tasks.csv, nodes.csv)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gce", description="graph-checkpoint-evaluator")
     parser.add_argument("--version", action="version", version=f"gce {__version__}")
@@ -116,6 +164,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sample", type=int, default=5, help="number of run units to convert (default 5)")
     p.add_argument("--seed", type=int, default=0)
     p.set_defaults(func=cmd_adapter_check)
+
+    p = sub.add_parser("score", help="score traces against checkpoint graphs")
+    p.add_argument("--graphs", nargs="+", required=True, help="graph files or directories")
+    p.add_argument("--traces", nargs="+", required=True, help="trace files or directories")
+    p.add_argument("--out", required=True, help="output directory for *.eval.json")
+    p.add_argument("--judge", default="none", help="none (default) | anthropic[:model] | path/to/judge.py[:Class]")
+    p.set_defaults(func=cmd_score)
+
+    p = sub.add_parser("report", help="aggregate evaluations into summary.md, tasks.csv, nodes.csv")
+    p.add_argument("--evals", nargs="+", required=True, help="evaluation files or directories")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=cmd_report)
     return parser
 
 
