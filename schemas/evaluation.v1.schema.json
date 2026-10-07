@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gce.local/schemas/evaluation.v1.schema.json",
+  "title": "gce evaluation v1",
+  "description": "Result of scoring one run unit against one checkpoint graph.",
+  "type": "object",
+  "required": ["schema", "evaluator", "group_id", "run", "nodes", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "gce.evaluation.v1"},
+    "evaluator": {
+      "type": "object",
+      "required": ["version"],
+      "additionalProperties": true,
+      "properties": {"version": {"type": "string"}, "judge": {"type": ["string", "null"]}}
+    },
+    "group_id": {"type": "string"},
+    "run": {"type": "object", "additionalProperties": true},
+    "capabilities": {"type": "object", "additionalProperties": true},
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["state"],
+        "additionalProperties": false,
+        "properties": {
+          "state": {"enum": ["pass", "implied", "fail", "absent", "unsupported", "n/a"]},
+          "self_reported": {"type": "boolean"},
+          "confidence": {"enum": ["high", "low"]},
+          "observed": {},
+          "quantities": {"type": "object", "additionalProperties": true},
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source"],
+              "additionalProperties": false,
+              "properties": {
+                "source": {"enum": ["stage_log", "step", "final_answer", "judge", "pattern"]},
+                "ref": {"type": ["integer", "string"]},
+                "snippet": {"type": "string"}
+              }
+            }
+          },
+          "bleed_from": {"type": ["string", "null"]},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path", "depth", "path_length"],
+        "additionalProperties": false,
+        "properties": {
+          "answer_status": {"enum": ["resolved", "unresolved", "missing"]},
+          "answer_observed": {},
+          "answer_correct": {"type": ["boolean", "null"]},
+          "answer_correct_vs_ideal": {"type": ["boolean", "null"]},
+          "path": {"type": "array", "items": {"type": "string"}},
+          "path_length": {"type": "integer"},
+          "depth": {"type": "integer"},
+          "depth_fraction": {"type": "number"},
+          "first_failure": {"type": ["string", "null"]},
+          "first_failure_stage": {"type": ["string", "null"]},
+          "first_gap": {"type": ["string", "null"]},
+          "first_gap_stage": {"type": ["string", "null"]},
+          "hidden_misses": {"type": "array", "items": {"type": "string"}},
+          "states": {"type": "object", "additionalProperties": {"type": "integer"}}
+        }
+      }
+    },
+    "group_metrics": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "root_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node", "affected_tasks"],
+            "additionalProperties": false,
+            "properties": {
+              "node": {"type": "string"},
+              "stage_type": {"type": "string"},
+              "affected_tasks": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "failed_tasks": {"type": "integer"},
+        "consistency": {"type": "object", "additionalProperties": true},
+        "parameter_bleed": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+        "reuse": {"type": "object", "additionalProperties": true}
+      }
+    }
+  }
+}

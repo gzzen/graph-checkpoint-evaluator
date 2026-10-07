@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gce.local/schemas/checkpoint_graph.v1.schema.json",
+  "title": "gce checkpoint graph v1",
+  "description": "Reference analysis of one task group as a DAG of checkpoints. Each task is the path of ancestors of its answer node.",
+  "type": "object",
+  "required": ["schema", "group_id", "tasks", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "gce.checkpoint_graph.v1"},
+    "group_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string"},
+    "source": {
+      "type": "object",
+      "description": "Free-form provenance of the reference (benchmark, version, notebook path, ...).",
+      "additionalProperties": true
+    },
+    "notes": {"type": "string"},
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "answer_node"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "answer_node": {"type": "string"},
+          "question": {"type": "string"},
+          "ideal": {"$ref": "value_spec.v1.schema.json", "description": "Official ideal answer, if it differs from the answer node expectation."},
+          "label_status": {
+            "enum": ["consistent", "mismatch", "unverified"],
+            "description": "Whether the official ideal agrees with the reference analysis."
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/node"}
+    }
+  },
+  "$defs": {
+    "stage_type": {
+      "description": "Recommended vocabulary; other strings are allowed for other domains.",
+      "anyOf": [
+        {"enum": ["inputs", "cohort", "filter", "transform", "model", "result_table", "downstream", "answer"]},
+        {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+      ]
+    },
+    "quantity": {
+      "type": "object",
+      "required": ["name", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "expected": {"$ref": "value_spec.v1.schema.json"},
+        "aliases": {
+          "type": "array", "items": {"type": "string"},
+          "description": "Names under which an agent may report this quantity (matched against stage-log output keys)."
+        },
+        "context": {
+          "type": "array", "items": {"type": "string"},
+          "description": "Regexes that must occur near a value in free text for it to count as this quantity."
+        },
+        "specificity": {
+          "enum": ["high", "low"],
+          "description": "low = the value is common (0, 1, small counts) and is only accepted with name/context support."
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "stage_type", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$"},
+        "stage_type": {"$ref": "#/$defs/stage_type"},
+        "description": {"type": "string", "minLength": 1, "description": "Semantic, tool-agnostic statement of what is computed."},
+        "params": {"type": "object", "additionalProperties": true},
+        "quantities": {"type": "array", "items": {"$ref": "#/$defs/quantity"}},
+        "require": {"enum": ["all", "any"], "default": "all"},
+        "depends_on": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "gating": {"type": "boolean", "default": true, "description": "Whether failing this node blocks a correct answer."},
+        "hidden": {"type": "boolean", "default": false, "description": "Decision taken by the reference that the task text does not state."},
+        "variant_of": {"type": "string", "description": "Node this one re-parameterizes (e.g. a different threshold for one task)."},
+        "alternatives": {
+          "type": "array", "items": {"type": "string"},
+          "description": "Nodes that are valid substitutes; if one passes, this node is n/a."
+        },
+        "probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {"enum": ["auto", "deterministic", "judge"], "default": "auto"},
+            "patterns": {
+              "type": "array", "items": {"type": "string"},
+              "description": "Regexes over agent code/commands that evidence a semantic node (e.g. a design formula)."
+            },
+            "judge_instructions": {"type": "string"}
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source"],
+          "properties": {
+            "source": {"enum": ["printed", "derived", "rerun", "authored", "question"]},
+            "ref": {"type": "string"},
+            "notes": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

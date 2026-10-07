@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gce.local/schemas/stage_log_entry.v1.schema.json",
+  "title": "gce stage log entry v1",
+  "description": "Method-neutral record of one analysis step an agent actually performed and the key quantities it produced. Typically written one JSON object per line to stage_log.jsonl.",
+  "type": "object",
+  "required": ["action"],
+  "additionalProperties": false,
+  "properties": {
+    "step": {"type": ["integer", "string"], "description": "Agent's own step counter or label."},
+    "action": {"type": "string", "minLength": 1, "description": "What was done, in plain words."},
+    "params": {"type": "object", "additionalProperties": true, "description": "Choices made: thresholds, design, test, filters."},
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Key quantities produced, keyed by a descriptive name (n_samples, n_degs, u_statistic, ...). Values may be numbers, strings, lists or objects."
+    },
+    "artifacts": {"type": "array", "items": {"type": "string"}, "description": "Files written or scripts executed for this step."},
+    "tasks": {
+      "description": "Tasks this step serves. 'shared' for steps common to all tasks in the run unit; omitted when the run unit has a single task.",
+      "oneOf": [
+        {"type": "array", "items": {"type": "string"}},
+        {"const": "shared"}
+      ]
+    },
+    "ts": {"type": ["string", "number"], "description": "Timestamp (ISO-8601 or epoch seconds)."},
+    "notes": {"type": "string"}
+  }
+}

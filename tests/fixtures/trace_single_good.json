@@ -1,0 +1,30 @@
+{
+  "schema": "gce.trace.v1",
+  "run": {
+    "run_unit_id": "demo/single/demo-q1/seed1",
+    "experiment": "demo",
+    "condition": "single",
+    "seed": 1,
+    "model": "fixture",
+    "group_id": "demo/two-sample",
+    "tasks_covered": ["demo-q1"],
+    "status": "completed"
+  },
+  "capabilities": {"raw_steps": true, "stage_log": true, "replayable_code": false},
+  "steps": [
+    {"index": 0, "kind": "exec", "tool": "bash", "input": "python analysis/load.py", "output": "loaded table: 100 rows x 3 columns"},
+    {"index": 1, "kind": "file_write", "tool": "write", "path": "analysis/test.py",
+     "input": "import pandas as pd\nfrom scipy.stats import ttest_ind\ndf = df[~df.outlier]\nprint(len(df))\nres = ttest_ind(a, b, equal_var=False)\nprint(res)"},
+    {"index": 2, "kind": "exec", "tool": "bash", "input": "python analysis/test.py",
+     "output": "samples after exclusion: 98\nTtestResult(statistic=2.5311, pvalue=0.01306)"}
+  ],
+  "stage_log": [
+    {"step": 1, "action": "Loaded the measurement table", "outputs": {"rows": 100, "columns": 3}},
+    {"step": 2, "action": "Removed samples flagged as outliers", "params": {"rule": "outlier == True"}, "outputs": {"n_samples": 98}},
+    {"step": 3, "action": "Welch two-sample t-test A vs B", "params": {"equal_var": false},
+     "outputs": {"t_statistic": 2.5311, "p_value": 0.01306}}
+  ],
+  "final_answers": {
+    "demo-q1": {"status": "resolved", "answer": "0.013"}
+  }
+}

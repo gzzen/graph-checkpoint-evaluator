@@ -59,6 +59,10 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce score --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
 ```
 
+On macOS the files under `Documents/` can be given the hidden flag, and Python 3.12+ then ignores the
+editable-install `.pth` file. If `import gce` fails, run
+`chflags nohidden .venv/lib/python3*/site-packages/*.pth`. The tests do not depend on this.
+
 ## Status
 
 Version 0.1, under active development. See `CHANGELOG.md`.

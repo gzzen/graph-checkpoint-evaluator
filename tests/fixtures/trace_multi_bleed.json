@@ -1,0 +1,29 @@
+{
+  "schema": "gce.trace.v1",
+  "run": {
+    "run_unit_id": "demo/group/seed1",
+    "experiment": "demo",
+    "condition": "group",
+    "seed": 1,
+    "group_id": "demo/two-sample",
+    "tasks_covered": ["demo-q1", "demo-q2"],
+    "status": "completed"
+  },
+  "capabilities": {"raw_steps": true, "stage_log": true, "replayable_code": false},
+  "steps": [
+    {"index": 0, "kind": "exec", "tool": "bash", "input": "python analysis/all.py",
+     "output": "loaded table: 100 rows\nsamples after exclusion: 98\nWelch: t=2.5311 p=0.01306\nmean A (98 samples) = 5.30"},
+    {"index": 1, "kind": "file_write", "tool": "write", "path": "analysis/all.py",
+     "input": "from scipy.stats import ttest_ind\ndf = df[~df.outlier]\nres = ttest_ind(a, b, equal_var=False)\nprint(df[df.g=='A'].value.mean())"}
+  ],
+  "stage_log": [
+    {"step": 1, "action": "Loaded data", "outputs": {"rows": 100}, "tasks": "shared"},
+    {"step": 2, "action": "Excluded outlier samples", "outputs": {"n_samples": 98}, "tasks": "shared"},
+    {"step": 3, "action": "Welch t-test", "outputs": {"t_statistic": 2.5311, "p_value": 0.01306}, "tasks": ["demo-q1"]},
+    {"step": 4, "action": "Mean of group A", "outputs": {"n_samples": 98, "mean_a": 5.30}, "tasks": ["demo-q2"]}
+  ],
+  "final_answers": {
+    "demo-q1": {"status": "resolved", "answer": "0.013"},
+    "demo-q2": {"status": "resolved", "answer": "5.30"}
+  }
+}

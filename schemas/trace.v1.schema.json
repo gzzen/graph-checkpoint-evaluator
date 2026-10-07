@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gce.local/schemas/trace.v1.schema.json",
+  "title": "gce trace v1",
+  "description": "Normalized record of one run unit (one agent context covering one or more tasks). Produced by adapters or emitted natively by an experiment harness.",
+  "type": "object",
+  "required": ["schema", "run", "capabilities", "steps", "stage_log", "final_answers"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "gce.trace.v1"},
+    "run": {
+      "type": "object",
+      "required": ["run_unit_id", "tasks_covered"],
+      "additionalProperties": false,
+      "properties": {
+        "run_unit_id": {"type": "string", "minLength": 1, "description": "Unique and stable within an experiment."},
+        "experiment": {"type": "string"},
+        "condition": {"type": "string"},
+        "seed": {"type": ["integer", "string", "null"]},
+        "model": {"type": ["string", "null"]},
+        "group_id": {"type": ["string", "null"], "description": "Task group hint; the evaluator can also resolve groups from task ids."},
+        "tasks_covered": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "status": {"enum": ["completed", "failed", "timeout", "unknown"]},
+        "started_at": {"type": ["string", "number", "null"]},
+        "duration_seconds": {"type": ["number", "null"]}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["raw_steps", "stage_log", "replayable_code"],
+      "additionalProperties": false,
+      "properties": {
+        "raw_steps": {"type": "boolean", "description": "steps[] carries real tool outputs that can corroborate values."},
+        "stage_log": {"type": "boolean", "description": "stage_log[] was produced by the agent or harness."},
+        "replayable_code": {"type": "boolean", "description": "Agent code is persisted and can be re-executed."}
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "kind": {"enum": ["exec", "tool_call", "file_write", "file_read", "message", "other"]},
+          "tool": {"type": ["string", "null"]},
+          "input": {"type": ["string", "null"], "description": "Command, code, file content written, or message text."},
+          "output": {"type": ["string", "null"], "description": "Tool output / stdout+stderr."},
+          "path": {"type": ["string", "null"], "description": "File path for file_write/file_read."},
+          "t": {"type": ["number", "null"], "description": "Seconds since run start."},
+          "tasks": {"type": "array", "items": {"type": "string"}},
+          "status": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "stage_log": {
+      "type": "array",
+      "items": {"$ref": "stage_log_entry.v1.schema.json"}
+    },
+    "final_answers": {
+      "type": "object",
+      "description": "Keyed by task id. Every task in run.tasks_covered should appear, with status 'missing' if no answer was produced.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "additionalProperties": false,
+        "properties": {
+          "status": {"enum": ["resolved", "unresolved", "missing"]},
+          "answer": {"type": ["string", "number", "boolean", "null"]},
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["answer"],
+              "additionalProperties": true,
+              "properties": {"answer": {"type": ["string", "number", "boolean"]}}
+            }
+          },
+          "summary": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "extras": {"type": "object", "additionalProperties": true, "description": "Layout-specific information the adapter could not map; kept, not interpreted."}
+  }
+}

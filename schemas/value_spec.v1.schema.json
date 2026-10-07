@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gce.local/schemas/value_spec.v1.schema.json",
+  "title": "gce ValueSpec v1",
+  "description": "Expected value of a checkpoint quantity or a task answer, with its matching tolerance.",
+  "oneOf": [
+    {
+      "type": "object",
+      "description": "Real number. Tolerance: explicit abs_tol/rel_tol, or half a unit of the last displayed digit via decimals/sig_figs.",
+      "properties": {
+        "type": {"const": "number"},
+        "value": {"type": "number"},
+        "abs_tol": {"type": "number", "minimum": 0},
+        "rel_tol": {"type": "number", "minimum": 0},
+        "decimals": {"type": "integer", "minimum": 0},
+        "sig_figs": {"type": "integer", "minimum": 1},
+        "allow_sign_flip": {"type": "boolean", "default": false}
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Integer count.",
+      "properties": {
+        "type": {"const": "integer"},
+        "value": {"type": "integer"},
+        "tol": {"type": "integer", "minimum": 0, "default": 0}
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Closed interval; bounds may be given in either order.",
+      "properties": {
+        "type": {"const": "range"},
+        "min": {"type": "number"},
+        "max": {"type": "number"}
+      },
+      "required": ["type", "min", "max"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Percentage expressed on the 0-100 scale. Matches '10.6%', 10.6 and the fraction 0.106.",
+      "properties": {
+        "type": {"const": "percent"},
+        "value": {"type": "number"},
+        "abs_tol": {"type": "number", "minimum": 0},
+        "decimals": {"type": "integer", "minimum": 0}
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Set of identifiers. mode=exact|contains|jaccard compare items; mode=size compares only the cardinality.",
+      "properties": {
+        "type": {"const": "set"},
+        "items": {"type": "array", "items": {"type": ["string", "number"]}},
+        "size": {"type": "integer", "minimum": 0},
+        "mode": {"enum": ["exact", "contains", "jaccard", "size"], "default": "exact"},
+        "threshold": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Categorical label (gene, pathway, group name). Case- and punctuation-insensitive; synonyms accepted.",
+      "properties": {
+        "type": {"const": "label"},
+        "value": {"type": "string"},
+        "synonyms": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Free string matched exactly (after optional normalization) or by regex.",
+      "properties": {
+        "type": {"const": "string"},
+        "value": {"type": "string"},
+        "regex": {"type": "string"},
+        "case_sensitive": {"type": "boolean", "default": false}
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {"const": "boolean"},
+        "value": {"type": "boolean"}
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Any of several acceptable specs (e.g. an ambiguous reference with two defensible readings).",
+      "properties": {
+        "type": {"const": "any_of"},
+        "options": {"type": "array", "minItems": 1, "items": {"$ref": "#"}}
+      },
+      "required": ["type", "options"],
+      "additionalProperties": false
+    }
+  ]
+}
