@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .graph import Graph
 from .io import load_doc
 from .schemas import SCHEMA_FILES, detect_kind, schema_errors
 
@@ -26,6 +27,8 @@ def cmd_validate(args: argparse.Namespace) -> int:
             failed += 1
             continue
         errors = schema_errors(doc, kind)
+        if not errors and kind == "checkpoint_graph":
+            errors = Graph.from_dict(doc).semantic_errors()
         if errors:
             failed += 1
             print(f"FAIL {path} ({kind})")

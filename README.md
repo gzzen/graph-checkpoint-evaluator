@@ -59,9 +59,15 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce score --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
 ```
 
-On macOS the files under `Documents/` can be given the hidden flag, and Python 3.12+ then ignores the
-editable-install `.pth` file. If `import gce` fails, run
-`chflags nohidden .venv/lib/python3*/site-packages/*.pth`. The tests do not depend on this.
+When the checkout lives in an iCloud-synced folder (e.g. `~/Documents`), sync can mark the
+editable-install `.pth` file hidden, and Python 3.12+ then skips it (`import gce` fails). Keep the
+environment out of sync instead:
+
+```bash
+uv venv -p 3.12 .venv.nosync && ln -s .venv.nosync .venv && uv pip install -p .venv/bin/python -e '.[dev]'
+```
+
+The tests do not depend on the editable install.
 
 ## Status
 
