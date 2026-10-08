@@ -60,10 +60,15 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce report --evals out/eval --graphs checkpoints/bixbench-v1.5 --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
 
-`summary.md` ends with **Paths per question**. For every question it shows a Mermaid diagram of its
-checkpoint path, each node coloured by how far the runs got. Below that is a grid of state symbols and
-observed values, one column per run, with depth reached, the node where each run stopped, and its final
-answer. Pass `--graphs` to add stage labels, expected values and the graph's edges.
+`gce report` also writes `paths/<group>.md`, one file per task group (e.g. `paths/bix-10.md`), which
+`summary.md` links to. For every question the file shows:
+- a Mermaid diagram of the checkpoint path, each checkpoint coloured by the outcomes the runs reached
+  there;
+- a table with one column per run, giving the outcome and the produced value at every checkpoint, the
+  number of gating checkpoints passed, where the run stopped, and its final answer.
+
+Outcomes are written out in words and defined at the top of each file. Pass `--graphs` to add stages,
+expected values, hidden and gating flags, and the graph's edges.
 
 `gce score --judge deepseek` enables the optional LLM judge for semantic checkpoints, the nodes
 without measurable quantities that no code pattern matched. It calls the DeepSeek chat-completions API

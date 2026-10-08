@@ -9,7 +9,7 @@ from statistics import mean
 from typing import Any
 
 from .io import load_doc
-from .paths import paths_markdown
+from .paths import document_name, group_documents
 
 TASK_FIELDS = [
     "experiment", "condition", "seed", "run_unit_id", "group_id", "unit_tasks", "task", "answer_status",
@@ -62,7 +62,7 @@ def _write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
 
 def _fmt(x: Any) -> str:
     if x is None:
-        return "–"
+        return "n/a"
     if isinstance(x, float):
         return f"{x:.2f}"
     return str(x)
@@ -121,7 +121,7 @@ def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
     for (task, cond), rs in sorted(by_task.items()):
         ff = Counter(r["first_failure"] for r in rs if r["first_failure"])
         table.append([task, cond, len(rs), float(mean(r["answer_correct"] is True for r in rs)), mean(r["depth_fraction"] for r in rs),
-                      ", ".join(f"{k}×{v}" for k, v in ff.most_common(3)) or "–"])
+                      ", ".join(f"{k} ({v})" for k, v in ff.most_common(3)) or "None"])
     lines += _table(["task", "condition", "runs", "accuracy", "mean depth fraction", "first failures"], table) + [""]
 
     multi = [d for d in evals if d.get("group_metrics")]
@@ -139,7 +139,10 @@ def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
         lines += ["## Checkpoints that vary across run units of the same condition", ""]
         lines += _table(["condition", "group", "node", "units", "states", "distinct observed"],
                         [[v["condition"], v["group_id"], v["node"], v["units"], json.dumps(v["states"]), v["distinct_observed"]] for v in variance]) + [""]
-    lines += paths_markdown(evals, graphs)
+    names = sorted({document_name(d["group_id"]) for d in evals})
+    lines += ["## Checkpoint paths per question", "",
+              "Diagrams and per-run tables for every question are in one file per task group:", ""]
+    lines += [f"- [{name[:-3]}](paths/{name})" for name in names] + [""]
     return "\n".join(lines)
 
 
@@ -148,4 +151,8 @@ def write_report(evals: list[dict], out: str | Path, graphs: list | None = None)
     _write_csv(out / "tasks.csv", task_rows(evals), TASK_FIELDS)
     _write_csv(out / "nodes.csv", node_rows(evals), NODE_FIELDS)
     (out / "summary.md").write_text(summary_markdown(evals, graphs), encoding="utf-8")
+    for group_id, text in group_documents(evals, graphs).items():
+        path = out / "paths" / document_name(group_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text + "\n", encoding="utf-8")
     return out
