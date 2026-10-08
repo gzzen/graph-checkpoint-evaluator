@@ -17,3 +17,4 @@
 - Path views are isolated per running condition: `paths/<condition>/<group>.md` (experiment added to the directory name when conditions share a name).
 - Each path file opens with the full checkpoint graph of its group (Mermaid, coloured by the condition's outcomes) and a checkpoint table (description, expected value, questions using it).
 - Path files explain checkpoint names: a prefix guide for the prefixes each graph uses, and per question a table of what every checkpoint on its path represents and which questions share it.
+- Only value-evidenced passes imply upstream checkpoints (a method-pattern pass no longer vouches for the cohort); labelled wrong values report the last occurrence; report "Stopped at" shows whichever of first failure / first gap comes first; bix-10 cohort aliases and the 51-100 chi-square checkpoint keyed on its statistic.

@@ -160,11 +160,14 @@ class Scorer:
                 results[nid] = self._probe(node, trace, users)
 
         raw_pass = {nid for nid, r in results.items() if r.state == "pass"}
+        # only a pass on a measured value vouches for upstream steps; a method pattern ("ran a chi-square
+        # test") or a judge verdict says nothing about the data that went into it
+        value_pass = {nid for nid in raw_pass if g.nodes[nid].quantities}
         for nid in scope:
             r, node = results[nid], g.nodes[nid]
             if r.state in ("absent", "fail") and any(a in raw_pass for a in node.alternatives):
                 r.state, r.note = "n/a", "an alternative route passed"
-            elif r.state == "absent" and g.descendants(nid) & raw_pass & set(scope):
+            elif r.state == "absent" and g.descendants(nid) & value_pass & set(scope):
                 r.state = "implied"
             if r.state == "fail" and r.observed is not None:
                 r.bleed_from = self._bleed_source(node, r)

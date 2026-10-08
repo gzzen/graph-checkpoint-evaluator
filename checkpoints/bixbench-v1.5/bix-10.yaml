@@ -76,7 +76,7 @@ nodes:
     hidden: true
     params: {missing: "dropna over AESEV and AEHS; 209 subjects without AESEV removed"}
     quantities:
-      - {name: n_analysed, expected: {type: integer, value: 791}, aliases: [n_complete, n_obs, observations, n_analyzed], context: ["Observations", "analy[sz]", "complete", "rows", "subjects", "\\bn\\s*="]}
+      - {name: n_analysed, expected: {type: integer, value: 791}, aliases: [n_complete, n_obs, observations, n_analyzed, subjects, participants, unique subj, unique participants], context: ["Observations", "analy[sz]", "complete", "rows", "subjects", "\\bn\\s*="]}
       - {name: n_bcg, expected: {type: integer, value: 437}, aliases: [bcg_n, n_bcg_group], context: ["BCG"]}
       - {name: n_placebo, expected: {type: integer, value: 354}, aliases: [placebo_n, n_placebo_group], context: ["Placebo"]}
     require: any
@@ -109,9 +109,7 @@ nodes:
     depends_on: [st_chisq]
     quantities:
       - {name: chi2_seen_51_100, expected: {type: number, value: 3.4530, abs_tol: 0.01}, aliases: [chi2, chi_square], context: ["chi", "51-100"]}
-      - {name: p_seen_51_100, expected: {type: number, value: 0.3269, abs_tol: 0.001}, aliases: [p, p_value], context: ["51-100"]}
-    require: any
-    provenance: {source: printed, ref: "cell 36 (Chi2=3.4530, p=0.3269)"}
+    provenance: {source: printed, ref: "cell 36 (Chi2=3.4530, p=0.3269); keyed on the statistic, as p-values of other tests coincide"}
   - id: r_chisq_seen_gt100
     stage_type: result_table
     description: Chi-square statistic in the subgroup seeing more than 100 patients.

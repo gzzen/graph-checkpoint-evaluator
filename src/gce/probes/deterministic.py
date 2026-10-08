@@ -224,8 +224,9 @@ def probe_quantity(q: Quantity, trace: Trace, task_ids: list[str], require_conte
         res.observed, res.evidence = named_fail[0][0], [ev for _, ev in named_fail[:3]]
     elif raw_fail:
         res.state, res.confidence = "fail", "low"
-        res.observed, res.evidence = raw_fail[0][0], [ev for _, ev in raw_fail[:3]]
-        res.note = "value labelled with the quantity's name in raw output"
+        # the last labelled value usually belongs to the final analysis, earlier ones to data exploration
+        res.observed, res.evidence = raw_fail[-1][0], [ev for _, ev in raw_fail[-3:][::-1]]
+        res.note = "value labelled with the quantity's name in raw output (last occurrence)"
     return res
 
 
