@@ -48,6 +48,21 @@ python -m builders.bixbench rerun bix-13          # run reruns/bix-13.yaml; writ
    did not use, add a variant node, and an `any_of` ideal when both readings are defensible.
 5. `gce validate checkpoints/bixbench-v1.5/<sid>.yaml`.
 
+## Answers the notebooks do not print (L1-L3)
+
+`derive.py` computes the missing answers that need at most a short re-execution:
+- **L1:** arithmetic on printed values;
+- **L2:** statistics from printed per-gene tables;
+- **L3:** short re-runs on the capsule data. R capsules go through `rerun`.
+
+Each derivation follows the notebook's own method and records alternative readings of the
+question. Only `compare()` looks at the official key, and it records how each value relates to it:
+`exact`, `variant`, `judged` (a stated human judgement) or `none`.
+
+```bash
+PYTHONPATH=src:. ../envs.nosync/pyenv/bin/python -m builders.bixbench.derive   # -> evidence/derived_78_L1_L3.json
+```
+
 ## Environments
 
 `envs/setup.sh <dir>` creates a Python 3.11 venv pinned close to the notebooks' Colab versions, and an

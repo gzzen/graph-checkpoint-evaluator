@@ -1,0 +1,561 @@
+[
+ {
+  "question_id": "bix-6-q5",
+  "level": "L1",
+  "method": "conditions (acute + chronic rounds 1-3) with >=1 pathway at adjusted p < 0.05, over all 4",
+  "source": "cells 26, 30",
+  "value": 25.0,
+  "variants": {
+   "conditions": {
+    "acute": false,
+    "chronic round 1": false,
+    "chronic round 2": true,
+    "chronic round 3": false
+   },
+   "significant_pathways": [
+    "Nitric oxide stimulates guanylate cyclase",
+    "cGMP effects"
+   ]
+  },
+  "notes": "Only chronic round 2 has significant pathways (NO/cGMP signalling); whether these count as 'immune-relevant' is a judgement the notebook does not make.",
+  "ideal": "25%",
+  "ideal_spec": {
+   "type": "percent",
+   "value": 25.0,
+   "decimals": 0
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-8-q1",
+  "level": "L1",
+  "method": "hyper-methylated & up-regulated / hyper-methylated",
+  "source": "cells 21, 23",
+  "value": 15.59,
+  "variants": {
+   "counts": {
+    "hyper": 680.0,
+    "hyper_and_up": 106.0
+   }
+  },
+  "notes": "",
+  "ideal": "15.6%",
+  "ideal_spec": {
+   "type": "percent",
+   "value": 15.6,
+   "decimals": 1
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-8-q3",
+  "level": "L1",
+  "method": "hyper-methylated / hypo-methylated gene counts",
+  "source": "cell 21",
+  "value": 1.331,
+  "variants": {
+   "counts": {
+    "hyper": 680.0,
+    "hypo": 511.0
+   }
+  },
+  "notes": "",
+  "ideal": "1.33",
+  "ideal_spec": {
+   "type": "number",
+   "value": 1.33,
+   "decimals": 2
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-10-q7",
+  "level": "L1",
+  "method": "(1 - OR[expect_interact]) x 100 from the ordinal model",
+  "source": "cell 42",
+  "value": 24.5,
+  "variants": {
+   "odds_ratio": 0.754981
+  },
+  "notes": "",
+  "ideal": "(24,26)",
+  "ideal_spec": {
+   "type": "range",
+   "min": 24.0,
+   "max": 26.0
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-30-q1",
+  "level": "L1",
+  "method": "miRNAs with unadjusted t-test p <= 0.05 / all miRNAs tested",
+  "source": "cell 16 + row count of the data file",
+  "value": 28.0,
+  "variants": {
+   "significant": 49.0,
+   "total_mirnas": 175
+  },
+  "notes": "",
+  "ideal": "28%",
+  "ideal_spec": {
+   "type": "percent",
+   "value": 28.0,
+   "decimals": 0
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-39-q2",
+  "level": "L1",
+  "method": "3rd quartile - 1st quartile of per-sample somatic (VAF < 0.3) counts, BLM carriers (R summary)",
+  "source": "cell 19",
+  "value": 2.5,
+  "variants": {
+   "quartiles": [
+    1.0,
+    3.5
+   ]
+  },
+  "notes": "",
+  "ideal": "2.5",
+  "ideal_spec": {
+   "type": "number",
+   "value": 2.5,
+   "decimals": 1
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-52-q2",
+  "level": "L1",
+  "method": "mean over chromosomes of filtered distinct-CpG density (Jackdaw), from the printed table",
+  "source": "cell 39 (20 rows) + evidence/bix-52.json",
+  "value": 1.12805e-07,
+  "variants": {
+   "rerun_mean_chrom_density": 1.12825680231181e-07,
+   "rerun_pooled_density (total CpGs / total length)": 6.01495999807465e-08,
+   "n_chromosomes": 20
+  },
+  "notes": "",
+  "ideal": "(1.03E-07,1.23E-07)",
+  "ideal_spec": {
+   "type": "range",
+   "min": 1.03e-07,
+   "max": 1.23e-07
+  },
+  "matching_variants": [
+   "rerun_mean_chrom_density"
+  ],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-25-q1",
+  "level": "L2",
+  "method": "median treeness/RCV over fungal genes",
+  "source": "cell 37",
+  "value": 0.2585,
+  "variants": {
+   "n_genes": 249
+  },
+  "notes": "",
+  "ideal": "0.26",
+  "ideal_spec": {
+   "type": "number",
+   "value": 0.26,
+   "decimals": 2
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-28-q2",
+  "level": "L2",
+  "method": "median over fungal genes of per-gene mean LBS",
+  "source": "cell 37",
+  "value": -25.0,
+  "variants": {
+   "n_genes": 249
+  },
+  "notes": "",
+  "ideal": "-25.0",
+  "ideal_spec": {
+   "type": "number",
+   "value": -25.0,
+   "decimals": 1
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-28-q5",
+  "level": "L2",
+  "method": "mean over fungal genes of per-gene median LBS",
+  "source": "cell 37",
+  "value": -26.906,
+  "variants": {},
+  "notes": "",
+  "ideal": "-26.9",
+  "ideal_spec": {
+   "type": "number",
+   "value": -26.9,
+   "decimals": 1
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-28-q6",
+  "level": "L2",
+  "method": "|mean(animal per-gene mean LBS) - mean(fungal per-gene mean LBS)|",
+  "source": "cell 37",
+  "value": 5.2282,
+  "variants": {
+   "animals": -31.499974,
+   "fungi": -26.27174859437751
+  },
+  "notes": "",
+  "ideal": "5.2",
+  "ideal_spec": {
+   "type": "number",
+   "value": 5.2,
+   "decimals": 1
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-38-q1",
+  "level": "L2",
+  "method": "median fungal tree length / median animal tree length",
+  "source": "cell 38",
+  "value": 2.178,
+  "variants": {},
+  "notes": "",
+  "ideal": "2x larger in fungi",
+  "ideal_spec": {
+   "type": "label",
+   "value": "2x larger in fungi"
+  },
+  "matching_variants": [],
+  "match_kind": "judged",
+  "judgement": "ratio 2.178 = 'about 2x larger in fungi' (prose ideal graded by an LLM verifier)"
+ },
+ {
+  "question_id": "bix-38-q2",
+  "level": "L2",
+  "method": "sample variance of animal tree lengths",
+  "source": "cell 38",
+  "value": 0.5458,
+  "variants": {
+   "population_variance": 0.5403
+  },
+  "notes": "",
+  "ideal": "0.55",
+  "ideal_spec": {
+   "type": "number",
+   "value": 0.55,
+   "decimals": 2
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-38-q3",
+  "level": "L2",
+  "method": "% of fungal orthologs with tree length > 5.0",
+  "source": "cell 38",
+  "value": 5.22,
+  "variants": {},
+  "notes": "",
+  "ideal": "5%",
+  "ideal_spec": {
+   "type": "percent",
+   "value": 5.0,
+   "decimals": 0
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-38-q5",
+  "level": "L2",
+  "method": "% of fungal orthologs longer than the mean animal tree length",
+  "source": "cell 38",
+  "value": 93.98,
+  "variants": {
+   "mean_animal": 1.469874
+  },
+  "notes": "",
+  "ideal": "94%",
+  "ideal_spec": {
+   "type": "percent",
+   "value": 94.0,
+   "decimals": 0
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-38-q6",
+  "level": "L2",
+  "method": "median over orthologs present in both lineages of fungal/animal tree length (as the question asks)",
+  "source": "cell 38",
+  "value": 1.904,
+  "variants": {
+   "ratio_of_medians (median fungal / median animal)": 2.178,
+   "n_paired": 96
+  },
+  "notes": "",
+  "ideal": "2.178",
+  "ideal_spec": {
+   "type": "number",
+   "value": 2.178,
+   "decimals": 3
+  },
+  "matching_variants": [
+   "ratio_of_medians (median fungal / median animal)"
+  ],
+  "match_kind": "variant"
+ },
+ {
+  "question_id": "bix-45-q1",
+  "level": "L2",
+  "method": "two-sided Mann-Whitney U, animal vs fungal RCV (scipy, as cell 34)",
+  "source": "cell 30 table, cell 34 code",
+  "value": 7.696760829801303e-54,
+  "variants": {
+   "U": 6115.0
+  },
+  "notes": "",
+  "ideal": "7.6968e-54",
+  "ideal_spec": {
+   "type": "number",
+   "value": 7.6968e-54,
+   "sig_figs": 5
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-45-q2",
+  "level": "L2",
+  "method": "median fungal RCV",
+  "source": "cell 30",
+  "value": 0.2212,
+  "variants": {},
+  "notes": "",
+  "ideal": "0.22",
+  "ideal_spec": {
+   "type": "number",
+   "value": 0.22,
+   "decimals": 2
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-45-q5",
+  "level": "L2",
+  "method": "median over orthologs in both lineages of (fungal - animal) RCV",
+  "source": "cell 30",
+  "value": 0.1231,
+  "variants": {
+   "n_paired": 241,
+   "difference_of_medians": 0.1195
+  },
+  "notes": "",
+  "ideal": "0.12",
+  "ideal_spec": {
+   "type": "number",
+   "value": 0.12,
+   "decimals": 2
+  },
+  "matching_variants": [
+   "difference_of_medians"
+  ],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-45-q6",
+  "level": "L2",
+  "method": "75th percentile of fungal RCV (linear interpolation)",
+  "source": "cell 30",
+  "value": 0.2676,
+  "variants": {},
+  "notes": "",
+  "ideal": "0.27",
+  "ideal_spec": {
+   "type": "number",
+   "value": 0.27,
+   "decimals": 2
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-6-q6",
+  "level": "L3",
+  "method": "Spearman correlation of acute T-cell screen MAGeCK p-values, S1 vs S2 (as cell 19)",
+  "source": "MAGeCK P-values sheet",
+  "value": 0.021604977907943284,
+  "variants": {
+   "p_value": 0.0008744641445310342,
+   "anderson_darling_normal": false,
+   "n_genes": 23726
+  },
+  "notes": "The saved notebook has no output for this cell (NameError in the saved session).",
+  "ideal": "(0,0.09)",
+  "ideal_spec": {
+   "type": "range",
+   "min": 0.0,
+   "max": 0.09
+  },
+  "matching_variants": [
+   "p_value"
+  ],
+  "match_kind": "exact"
+ },
+ {
+  "question_id": "bix-22-q6",
+  "level": "L3",
+  "method": "Pearson(gene length, mean expression) over protein-coding genes, all immune samples pooled (the notebook only computes it per cell type)",
+  "source": "data; notebook cells 19-30",
+  "value": 0.0387,
+  "variants": {
+   "notebook_per_celltype_CD4": 0.049889,
+   "notebook_per_celltype_CD8": 0.04367,
+   "notebook_per_celltype_CD14": 0.020527,
+   "notebook_per_celltype_CD19": 0.035662,
+   "pooled_immune_raw_pearson": 0.0387,
+   "pooled_all_samples_raw_pearson": 0.0383,
+   "pooled_immune_spearman": 0.3419,
+   "pooled_immune_log10len_vs_log10expr+1": 0.3324,
+   "pooled_immune_len_vs_log10expr+1": 0.2499,
+   "pooled_immune_log10len_vs_expr": 0.0313,
+   "log_log_CD4": 0.3323,
+   "log_log_CD8": 0.3244,
+   "log_log_CD14": 0.2866,
+   "log_log_CD19": 0.3238
+  },
+  "notes": "17819 protein-coding genes after the notebook's filter.",
+  "ideal": "(0.3,0.4)",
+  "ideal_spec": {
+   "type": "range",
+   "min": 0.3,
+   "max": 0.4
+  },
+  "matching_variants": [
+   "pooled_immune_spearman",
+   "pooled_immune_log10len_vs_log10expr+1",
+   "log_log_CD4",
+   "log_log_CD8",
+   "log_log_CD19"
+  ],
+  "match_kind": "variant"
+ },
+ {
+  "question_id": "bix-33-q1",
+  "level": "L3",
+  "method": "cell type with most DEGs at p_val_adj < 0.05 among the notebook's 7 tabs (cell 21 chart)",
+  "source": "supplementary DEG workbook",
+  "value": "CD14 Mono",
+  "variants": {
+   "counts_notebook_tabs": {
+    "Treg": 13,
+    "CD14 Mono": 315,
+    "CD16 Mono": 240,
+    "cDC2": 1,
+    "pDC": 0,
+    "gdT": 4,
+    "ILC": 1
+   },
+   "top_all_tabs": "CD14 Mono",
+   "counts_all_tabs": {
+    "B intermediate": 36,
+    "B memory": 23,
+    "B naive": 18,
+    "CD4 CTL": 15,
+    "CD4 Naive": 30,
+    "CD4 TCM": 58,
+    "CD4 TEM": 1,
+    "CD8 Naive": 13,
+    "CD8 TCM": 4,
+    "CD8 TEM": 19,
+    "CD14 Mono": 315,
+    "CD16 Mono": 240,
+    "cDC2": 1,
+    "dnT": 2,
+    "Eryth": 0,
+    "gdT": 4,
+    "HSPC": 18,
+    "ILC": 1,
+    "MAIT": 22,
+    "NK CD56 bright": 1,
+    "NK": 118,
+    "pDC": 0,
+    "Plasmablast": 0,
+    "Platelet": 0,
+    "Treg": 13
+   }
+  },
+  "notes": "",
+  "ideal": "CD14 Monocytes",
+  "ideal_spec": {
+   "type": "label",
+   "value": "CD14 Monocytes"
+  },
+  "matching_variants": [],
+  "match_kind": "judged",
+  "judgement": "'CD14 Mono' is the workbook's tab name for CD14 monocytes"
+ },
+ {
+  "question_id": "bix-52-q1",
+  "level": "L3",
+  "method": "Zebra Finch filtered distinct-CpG density, chromosome W / chromosome 1 (R re-run)",
+  "source": "evidence/bix-52.json",
+  "value": 1.5199304278128,
+  "variants": {
+   "chr1_over_W": 0.657924850836111,
+   "jackdaw_W_over_1": 22.0389912032855,
+   "zf_unfiltered_W_over_1": 42.5429282929094
+  },
+  "notes": "The shipped Zebra Finch chromosome lengths are the Jackdaw lengths (notebook cell 14 bug).",
+  "ideal": "(0.47,0.67)",
+  "ideal_spec": {
+   "type": "range",
+   "min": 0.47,
+   "max": 0.67
+  },
+  "matching_variants": [
+   "chr1_over_W"
+  ],
+  "match_kind": "variant"
+ },
+ {
+  "question_id": "bix-52-q7",
+  "level": "L3",
+  "method": "Zebra Finch rows removed by the >90% / <10% methylation filter (R re-run)",
+  "source": "evidence/bix-52.json",
+  "value": 19159,
+  "variants": {
+   "distinct_sites_removed": 849,
+   "rows_all": 19698,
+   "rows_kept": 539
+  },
+  "notes": "",
+  "ideal": "19,159",
+  "ideal_spec": {
+   "type": "integer",
+   "value": 19159
+  },
+  "matching_variants": [],
+  "match_kind": "exact"
+ }
+]

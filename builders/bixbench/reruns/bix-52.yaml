@@ -1,0 +1,50 @@
+# Re-run of bix-52 (age-related CpG density across chromosomes, Jackdaw and Zebra Finch).
+# The notebook prints per-chromosome tables truncated to 10 rows and never prints filter counts, so
+# q1 (W vs chr1 density, Zebra Finch), q2 (genome-wide density, Jackdaw) and q7 (sites removed) come from here.
+# Note: notebook cell 14 saves JD_Chromosome_Length.csv as ZF_Chromosome_Length.csv, so the shipped Zebra
+# Finch lengths are the Jackdaw lengths (the two files are byte-identical); the re-run keeps that behaviour.
+language: R
+setup: |
+  suppressPackageStartupMessages({library(tidyverse)})
+drop_cells: [13, 14, 37]   # Zenodo downloads (files ship in the capsule data); 37 is markdown text in a code cell
+instrument: |
+  dens <- function(df, chrom) {
+    df %>% group_by(Chromosome) %>% summarize(n_cpgs = n_distinct(Pos)) %>%
+      left_join(chrom, by = join_by(Chromosome)) %>% filter(!is.na(Length)) %>% mutate(cpg_density = n_cpgs / Length)
+  }
+  zf_f <- dens(zf_cpgs_filtered, zf_chrom); jd_f <- dens(jd_cpgs_filtered, jd_chrom)
+  zf_a <- dens(zf_cpgs, zf_chrom)
+  gce_checkpoint("zf_rows_all", nrow(zf_cpgs))
+  gce_checkpoint("zf_rows_filtered", nrow(zf_cpgs_filtered))
+  gce_checkpoint("zf_rows_removed", nrow(zf_cpgs) - nrow(zf_cpgs_filtered))
+  gce_checkpoint("zf_distinct_all", n_distinct(zf_cpgs$Pos))
+  gce_checkpoint("zf_distinct_filtered", n_distinct(zf_cpgs_filtered$Pos))
+  gce_checkpoint("zf_distinct_removed", n_distinct(zf_cpgs$Pos) - n_distinct(zf_cpgs_filtered$Pos))
+  gce_checkpoint("jd_rows_all", nrow(jd_cpgs))
+  gce_checkpoint("jd_rows_filtered", nrow(jd_cpgs_filtered))
+  gce_checkpoint("zf_filtered_by_chrom", zf_f)
+  gce_checkpoint("jd_filtered_by_chrom", jd_f)
+  gce_checkpoint("zf_all_by_chrom", zf_a)
+  w1 <- function(t) t$cpg_density[t$Chromosome == "W"] / t$cpg_density[t$Chromosome == "1"]
+  gce_checkpoint("zf_filtered_W_over_1", w1(zf_f))
+  gce_checkpoint("jd_filtered_W_over_1", w1(jd_f))
+  gce_checkpoint("zf_all_W_over_1", w1(zf_a))
+  gce_checkpoint("jd_filtered_mean_chrom_density", mean(jd_f$cpg_density))
+  gce_checkpoint("jd_filtered_pooled_density", sum(jd_f$n_cpgs) / sum(jd_f$Length))
+  gce_checkpoint("zf_filtered_mean_chrom_density", mean(zf_f$cpg_density))
+  gce_checkpoint("zf_filtered_pooled_density", sum(zf_f$n_cpgs) / sum(zf_f$Length))
+  gce_checkpoint("zf_filtered_Z_density", zf_f$cpg_density[zf_f$Chromosome == "Z"])
+  gce_checkpoint("jd_filtered_Z_density", jd_f$cpg_density[jd_f$Chromosome == "Z"])
+  chi <- function(t) unname(chisq.test(t$n_cpgs, p = t$Length / sum(t$Length))$statistic)
+  gce_checkpoint("chisq_zf_all", chi(zf_a))
+  gce_checkpoint("chisq_zf_filtered", chi(zf_f))
+  gce_checkpoint("chisq_jd_all", chi(dens(jd_cpgs, jd_chrom)))
+  gce_checkpoint("chisq_jd_filtered", chi(jd_f))
+  gce_checkpoint("length_files_identical", isTRUE(all.equal(as.data.frame(zf_chrom), as.data.frame(jd_chrom), check.attributes = FALSE)))
+  gce_checkpoint("chr1_over_W_zf_filtered", 1 / w1(zf_f))
+anchors:
+  - {name: chisq_zf_all, expected: {type: number, value: 14722, abs_tol: 1}, source: "cell 35 (X-squared = 14722)"}
+  - {name: chisq_zf_filtered, expected: {type: number, value: 458.27, abs_tol: 0.01}, source: "cell 36"}
+  - {name: chisq_jd_filtered, expected: {type: number, value: 49.638, abs_tol: 0.001}, source: "cell 39"}
+  - {name: jd_rows_all, expected: {type: integer, value: 24527}, source: "cell 15 (Rows: 24527)"}
+timeout: 600

@@ -1,0 +1,684 @@
+{
+ "sid": "bix-52",
+ "capsule_uuid": "4dceea58-7d66-4576-bfc6-88c026d5b7a9",
+ "date": "2026-10-08",
+ "returncode": 0,
+ "environment": {
+  "r": "R version 4.3.1 (2023-06-16)",
+  "packages": {
+   "DESeq2": "1.42.1",
+   "apeglm": "1.24.0",
+   "tidyverse": "2.0.0",
+   "rstatix": "0.7.2",
+   "multcomp": "1.4.28"
+  }
+ },
+ "patches": [
+  "setup code before the first cell"
+ ],
+ "checkpoints": {
+  "zf_rows_all": {
+   "value": 19698,
+   "cell": null
+  },
+  "zf_rows_filtered": {
+   "value": 539,
+   "cell": null
+  },
+  "zf_rows_removed": {
+   "value": 19159,
+   "cell": null
+  },
+  "zf_distinct_all": {
+   "value": 1140,
+   "cell": null
+  },
+  "zf_distinct_filtered": {
+   "value": 291,
+   "cell": null
+  },
+  "zf_distinct_removed": {
+   "value": 849,
+   "cell": null
+  },
+  "jd_rows_all": {
+   "value": 24527,
+   "cell": null
+  },
+  "jd_rows_filtered": {
+   "value": 52,
+   "cell": null
+  },
+  "zf_filtered_by_chrom": {
+   "value": [
+    {
+     "Chromosome": "1",
+     "n_cpgs": 29,
+     "Length": 99062180,
+     "cpg_density": 2.92745425146105e-07
+    },
+    {
+     "Chromosome": "11",
+     "n_cpgs": 1,
+     "Length": 23986915,
+     "cpg_density": 4.16893960728172e-08
+    },
+    {
+     "Chromosome": "12",
+     "n_cpgs": 1,
+     "Length": 23235100,
+     "cpg_density": 4.30383342443114e-08
+    },
+    {
+     "Chromosome": "13",
+     "n_cpgs": 1,
+     "Length": 22362767,
+     "cpg_density": 4.47171854896132e-08
+    },
+    {
+     "Chromosome": "14",
+     "n_cpgs": 2,
+     "Length": 23265108,
+     "cpg_density": 8.5965644346031e-08
+    },
+    {
+     "Chromosome": "17",
+     "n_cpgs": 1,
+     "Length": 16938386,
+     "cpg_density": 5.90375021563448e-08
+    },
+    {
+     "Chromosome": "18",
+     "n_cpgs": 1,
+     "Length": 15572589,
+     "cpg_density": 6.42153979662598e-08
+    },
+    {
+     "Chromosome": "19",
+     "n_cpgs": 1,
+     "Length": 12787533,
+     "cpg_density": 7.82011667144867e-08
+    },
+    {
+     "Chromosome": "2",
+     "n_cpgs": 58,
+     "Length": 123451405,
+     "cpg_density": 4.69820493335009e-07
+    },
+    {
+     "Chromosome": "20",
+     "n_cpgs": 1,
+     "Length": 13899114,
+     "cpg_density": 7.1947032019451e-08
+    },
+    {
+     "Chromosome": "21",
+     "n_cpgs": 1,
+     "Length": 13093161,
+     "cpg_density": 7.63757506686124e-08
+    },
+    {
+     "Chromosome": "22",
+     "n_cpgs": 2,
+     "Length": 8696975,
+     "cpg_density": 2.29965016571854e-07
+    },
+    {
+     "Chromosome": "23",
+     "n_cpgs": 3,
+     "Length": 7971722,
+     "cpg_density": 3.76330233292129e-07
+    },
+    {
+     "Chromosome": "24",
+     "n_cpgs": 2,
+     "Length": 11344391,
+     "cpg_density": 1.76298577861077e-07
+    },
+    {
+     "Chromosome": "27",
+     "n_cpgs": 2,
+     "Length": 6387999,
+     "cpg_density": 3.13087087208373e-07
+    },
+    {
+     "Chromosome": "28",
+     "n_cpgs": 3,
+     "Length": 7803721,
+     "cpg_density": 3.84431990841292e-07
+    },
+    {
+     "Chromosome": "29",
+     "n_cpgs": 4,
+     "Length": 3496993,
+     "cpg_density": 1.14383986470662e-06
+    },
+    {
+     "Chromosome": "3",
+     "n_cpgs": 32,
+     "Length": 121534940,
+     "cpg_density": 2.63298768238994e-07
+    },
+    {
+     "Chromosome": "30",
+     "n_cpgs": 1,
+     "Length": 22021689,
+     "cpg_density": 4.54097776060683e-08
+    },
+    {
+     "Chromosome": "31",
+     "n_cpgs": 1,
+     "Length": 4714721,
+     "cpg_density": 2.12101628070887e-07
+    },
+    {
+     "Chromosome": "32",
+     "n_cpgs": 7,
+     "Length": 736907,
+     "cpg_density": 9.49916339510956e-06
+    },
+    {
+     "Chromosome": "35",
+     "n_cpgs": 1,
+     "Length": 1321807,
+     "cpg_density": 7.56540100029732e-07
+    },
+    {
+     "Chromosome": "4",
+     "n_cpgs": 19,
+     "Length": 8011800,
+     "cpg_density": 2.37150203449911e-06
+    },
+    {
+     "Chromosome": "5",
+     "n_cpgs": 13,
+     "Length": 76278832,
+     "cpg_density": 1.70427360502846e-07
+    },
+    {
+     "Chromosome": "6",
+     "n_cpgs": 8,
+     "Length": 66143299,
+     "cpg_density": 1.20949515989518e-07
+    },
+    {
+     "Chromosome": "7",
+     "n_cpgs": 8,
+     "Length": 40978052,
+     "cpg_density": 1.95226459276297e-07
+    },
+    {
+     "Chromosome": "8",
+     "n_cpgs": 4,
+     "Length": 38659334,
+     "cpg_density": 1.03467897300041e-07
+    },
+    {
+     "Chromosome": "9",
+     "n_cpgs": 4,
+     "Length": 33574751,
+     "cpg_density": 1.19137145648526e-07
+    },
+    {
+     "Chromosome": "W",
+     "n_cpgs": 3,
+     "Length": 6742290,
+     "cpg_density": 4.44952679282558e-07
+    },
+    {
+     "Chromosome": "Z",
+     "n_cpgs": 51,
+     "Length": 79826082,
+     "cpg_density": 6.38888928558463e-07
+    }
+   ],
+   "cell": null
+  },
+  "jd_filtered_by_chrom": {
+   "value": [
+    {
+     "Chromosome": "1",
+     "n_cpgs": 2,
+     "Length": 99062180,
+     "cpg_density": 2.01893396652486e-08
+    },
+    {
+     "Chromosome": "12",
+     "n_cpgs": 1,
+     "Length": 23235100,
+     "cpg_density": 4.30383342443114e-08
+    },
+    {
+     "Chromosome": "13",
+     "n_cpgs": 2,
+     "Length": 22362767,
+     "cpg_density": 8.94343709792263e-08
+    },
+    {
+     "Chromosome": "14",
+     "n_cpgs": 1,
+     "Length": 23265108,
+     "cpg_density": 4.29828221730155e-08
+    },
+    {
+     "Chromosome": "17",
+     "n_cpgs": 2,
+     "Length": 16938386,
+     "cpg_density": 1.1807500431269e-07
+    },
+    {
+     "Chromosome": "19",
+     "n_cpgs": 3,
+     "Length": 12787533,
+     "cpg_density": 2.3460350014346e-07
+    },
+    {
+     "Chromosome": "2",
+     "n_cpgs": 6,
+     "Length": 123451405,
+     "cpg_density": 4.86021200001733e-08
+    },
+    {
+     "Chromosome": "21",
+     "n_cpgs": 1,
+     "Length": 13093161,
+     "cpg_density": 7.63757506686124e-08
+    },
+    {
+     "Chromosome": "24",
+     "n_cpgs": 1,
+     "Length": 11344391,
+     "cpg_density": 8.81492889305384e-08
+    },
+    {
+     "Chromosome": "26",
+     "n_cpgs": 1,
+     "Length": 46055897,
+     "cpg_density": 2.1712746144104e-08
+    },
+    {
+     "Chromosome": "29",
+     "n_cpgs": 1,
+     "Length": 3496993,
+     "cpg_density": 2.85959966176655e-07
+    },
+    {
+     "Chromosome": "3",
+     "n_cpgs": 5,
+     "Length": 121534940,
+     "cpg_density": 4.11404325373428e-08
+    },
+    {
+     "Chromosome": "30",
+     "n_cpgs": 1,
+     "Length": 22021689,
+     "cpg_density": 4.54097776060683e-08
+    },
+    {
+     "Chromosome": "4",
+     "n_cpgs": 3,
+     "Length": 8011800,
+     "cpg_density": 3.74447689657755e-07
+    },
+    {
+     "Chromosome": "5",
+     "n_cpgs": 5,
+     "Length": 76278832,
+     "cpg_density": 6.55489848087868e-08
+    },
+    {
+     "Chromosome": "6",
+     "n_cpgs": 2,
+     "Length": 66143299,
+     "cpg_density": 3.02373789973796e-08
+    },
+    {
+     "Chromosome": "8",
+     "n_cpgs": 1,
+     "Length": 38659334,
+     "cpg_density": 2.58669743250104e-08
+    },
+    {
+     "Chromosome": "9",
+     "n_cpgs": 2,
+     "Length": 33574751,
+     "cpg_density": 5.95685728242631e-08
+    },
+    {
+     "Chromosome": "W",
+     "n_cpgs": 3,
+     "Length": 6742290,
+     "cpg_density": 4.44952679282558e-07
+    },
+    {
+     "Chromosome": "Z",
+     "n_cpgs": 8,
+     "Length": 79826082,
+     "cpg_density": 1.00217871146426e-07
+    }
+   ],
+   "cell": null
+  },
+  "zf_all_by_chrom": {
+   "value": [
+    {
+     "Chromosome": "1",
+     "n_cpgs": 67,
+     "Length": 99062180,
+     "cpg_density": 6.76342878785829e-07
+    },
+    {
+     "Chromosome": "10",
+     "n_cpgs": 2,
+     "Length": 28816175,
+     "cpg_density": 6.94054641186764e-08
+    },
+    {
+     "Chromosome": "11",
+     "n_cpgs": 8,
+     "Length": 23986915,
+     "cpg_density": 3.33515168582538e-07
+    },
+    {
+     "Chromosome": "12",
+     "n_cpgs": 7,
+     "Length": 23235100,
+     "cpg_density": 3.0126833971018e-07
+    },
+    {
+     "Chromosome": "13",
+     "n_cpgs": 1,
+     "Length": 22362767,
+     "cpg_density": 4.47171854896132e-08
+    },
+    {
+     "Chromosome": "14",
+     "n_cpgs": 3,
+     "Length": 23265108,
+     "cpg_density": 1.28948466519046e-07
+    },
+    {
+     "Chromosome": "17",
+     "n_cpgs": 3,
+     "Length": 16938386,
+     "cpg_density": 1.77112506469034e-07
+    },
+    {
+     "Chromosome": "18",
+     "n_cpgs": 5,
+     "Length": 15572589,
+     "cpg_density": 3.21076989831299e-07
+    },
+    {
+     "Chromosome": "19",
+     "n_cpgs": 2,
+     "Length": 12787533,
+     "cpg_density": 1.56402333428973e-07
+    },
+    {
+     "Chromosome": "2",
+     "n_cpgs": 104,
+     "Length": 123451405,
+     "cpg_density": 8.42436746669671e-07
+    },
+    {
+     "Chromosome": "20",
+     "n_cpgs": 24,
+     "Length": 13899114,
+     "cpg_density": 1.72672876846682e-06
+    },
+    {
+     "Chromosome": "21",
+     "n_cpgs": 5,
+     "Length": 13093161,
+     "cpg_density": 3.81878753343062e-07
+    },
+    {
+     "Chromosome": "22",
+     "n_cpgs": 7,
+     "Length": 8696975,
+     "cpg_density": 8.04877558001489e-07
+    },
+    {
+     "Chromosome": "23",
+     "n_cpgs": 4,
+     "Length": 7971722,
+     "cpg_density": 5.01773644389506e-07
+    },
+    {
+     "Chromosome": "24",
+     "n_cpgs": 30,
+     "Length": 11344391,
+     "cpg_density": 2.64447866791615e-06
+    },
+    {
+     "Chromosome": "25",
+     "n_cpgs": 3,
+     "Length": 7312786,
+     "cpg_density": 4.10240365299901e-07
+    },
+    {
+     "Chromosome": "26",
+     "n_cpgs": 2,
+     "Length": 46055897,
+     "cpg_density": 4.3425492288208e-08
+    },
+    {
+     "Chromosome": "27",
+     "n_cpgs": 21,
+     "Length": 6387999,
+     "cpg_density": 3.28741441568792e-06
+    },
+    {
+     "Chromosome": "28",
+     "n_cpgs": 40,
+     "Length": 7803721,
+     "cpg_density": 5.1257598778839e-06
+    },
+    {
+     "Chromosome": "29",
+     "n_cpgs": 4,
+     "Length": 3496993,
+     "cpg_density": 1.14383986470662e-06
+    },
+    {
+     "Chromosome": "3",
+     "n_cpgs": 68,
+     "Length": 121534940,
+     "cpg_density": 5.59509882507862e-07
+    },
+    {
+     "Chromosome": "30",
+     "n_cpgs": 15,
+     "Length": 22021689,
+     "cpg_density": 6.81146664091024e-07
+    },
+    {
+     "Chromosome": "31",
+     "n_cpgs": 1,
+     "Length": 4714721,
+     "cpg_density": 2.12101628070887e-07
+    },
+    {
+     "Chromosome": "32",
+     "n_cpgs": 54,
+     "Length": 736907,
+     "cpg_density": 7.32792604765595e-05
+    },
+    {
+     "Chromosome": "34",
+     "n_cpgs": 2,
+     "Length": 104925,
+     "cpg_density": 1.90612342149154e-05
+    },
+    {
+     "Chromosome": "35",
+     "n_cpgs": 88,
+     "Length": 1321807,
+     "cpg_density": 6.65755288026164e-05
+    },
+    {
+     "Chromosome": "37",
+     "n_cpgs": 7,
+     "Length": 336161,
+     "cpg_density": 2.08233554755013e-05
+    },
+    {
+     "Chromosome": "4",
+     "n_cpgs": 59,
+     "Length": 8011800,
+     "cpg_density": 7.36413789660251e-06
+    },
+    {
+     "Chromosome": "5",
+     "n_cpgs": 25,
+     "Length": 76278832,
+     "cpg_density": 3.27744924043934e-07
+    },
+    {
+     "Chromosome": "6",
+     "n_cpgs": 17,
+     "Length": 66143299,
+     "cpg_density": 2.57017721477727e-07
+    },
+    {
+     "Chromosome": "7",
+     "n_cpgs": 23,
+     "Length": 40978052,
+     "cpg_density": 5.61276070419355e-07
+    },
+    {
+     "Chromosome": "8",
+     "n_cpgs": 40,
+     "Length": 38659334,
+     "cpg_density": 1.03467897300041e-06
+    },
+    {
+     "Chromosome": "9",
+     "n_cpgs": 8,
+     "Length": 33574751,
+     "cpg_density": 2.38274291297052e-07
+    },
+    {
+     "Chromosome": "W",
+     "n_cpgs": 194,
+     "Length": 6742290,
+     "cpg_density": 2.87736065936054e-05
+    },
+    {
+     "Chromosome": "Z",
+     "n_cpgs": 147,
+     "Length": 79826082,
+     "cpg_density": 1.84150338231557e-06
+    }
+   ],
+   "cell": null
+  },
+  "zf_filtered_W_over_1": {
+   "value": 1.5199304278128,
+   "cell": null
+  },
+  "jd_filtered_W_over_1": {
+   "value": 22.0389912032855,
+   "cell": null
+  },
+  "zf_all_W_over_1": {
+   "value": 42.5429282929094,
+   "cell": null
+  },
+  "jd_filtered_mean_chrom_density": {
+   "value": 1.12825680231181e-07,
+   "cell": null
+  },
+  "jd_filtered_pooled_density": {
+   "value": 6.01495999807465e-08,
+   "cell": null
+  },
+  "zf_filtered_mean_chrom_density": {
+   "value": 6.297590596251e-07,
+   "cell": null
+  },
+  "zf_filtered_pooled_density": {
+   "value": 2.83756119761543e-07,
+   "cell": null
+  },
+  "zf_filtered_Z_density": {
+   "value": 6.38888928558463e-07,
+   "cell": null
+  },
+  "jd_filtered_Z_density": {
+   "value": 1.00217871146426e-07,
+   "cell": null
+  },
+  "chisq_zf_all": {
+   "value": 14722.2374744716,
+   "cell": null
+  },
+  "chisq_zf_filtered": {
+   "value": 458.271019596201,
+   "cell": null
+  },
+  "chisq_jd_all": {
+   "value": 4397.37396119931,
+   "cell": null
+  },
+  "chisq_jd_filtered": {
+   "value": 49.6377329012657,
+   "cell": null
+  },
+  "length_files_identical": {
+   "value": true,
+   "cell": null
+  },
+  "chr1_over_W_zf_filtered": {
+   "value": 0.657924850836111,
+   "cell": null
+  }
+ },
+ "anchors": [
+  {
+   "name": "chisq_zf_all",
+   "expected": {
+    "type": "number",
+    "value": 14722,
+    "abs_tol": 1
+   },
+   "source": "cell 35 (X-squared = 14722)",
+   "observed": 14722.2374744716,
+   "ok": true
+  },
+  {
+   "name": "chisq_zf_filtered",
+   "expected": {
+    "type": "number",
+    "value": 458.27,
+    "abs_tol": 0.01
+   },
+   "source": "cell 36",
+   "observed": 458.271019596201,
+   "ok": true
+  },
+  {
+   "name": "chisq_jd_filtered",
+   "expected": {
+    "type": "number",
+    "value": 49.638,
+    "abs_tol": 0.001
+   },
+   "source": "cell 39",
+   "observed": 49.6377329012657,
+   "ok": true
+  },
+  {
+   "name": "jd_rows_all",
+   "expected": {
+    "type": "integer",
+    "value": 24527
+   },
+   "source": "cell 15 (Rows: 24527)",
+   "observed": 24527,
+   "ok": true
+  }
+ ],
+ "anchors_ok": true
+}
