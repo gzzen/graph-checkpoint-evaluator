@@ -103,7 +103,8 @@ def cmd_score(args: argparse.Namespace) -> int:
 
     graphs = load_graphs(args.graphs)
     group_of = {task: g for g in graphs for task in g.tasks}
-    scorers = {g.group_id: Scorer(g, load_judge(args.judge)) for g in graphs}
+    judge = load_judge(args.judge, args.env_file)  # one instance: shared memo/cache across graphs
+    scorers = {g.group_id: Scorer(g, judge) for g in graphs}
     out = Path(args.out)
     written = skipped = 0
     for path in _trace_files(args.traces):
@@ -169,7 +170,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--graphs", nargs="+", required=True, help="graph files or directories")
     p.add_argument("--traces", nargs="+", required=True, help="trace files or directories")
     p.add_argument("--out", required=True, help="output directory for *.eval.json")
-    p.add_argument("--judge", default="none", help="none (default) | anthropic[:model] | path/to/judge.py[:Class]")
+    p.add_argument("--judge", default="none", help="none (default) | deepseek[:model] | path/to/judge.py[:Class]")
+    p.add_argument("--env-file", help="file with DEEPSEEK_* settings (default: ./.env, else the repository .env)")
     p.set_defaults(func=cmd_score)
 
     p = sub.add_parser("report", help="aggregate evaluations into summary.md, tasks.csv, nodes.csv")

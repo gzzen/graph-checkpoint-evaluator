@@ -15,7 +15,10 @@ out/
 runs/
 **/logs/
 
-# Local configuration overrides
+# Secrets and local configuration overrides
+.env
+.env.*
+!.env.example
 builders/bixbench/config.local.toml
 
 .DS_Store

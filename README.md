@@ -60,8 +60,18 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce report --evals out/eval --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
 
-`gce score --judge anthropic` enables the optional LLM judge for semantic checkpoints (install
-`.[llm]`). It calls `claude-opus-5-5` with server-side refusal fallbacks enabled.
+`gce score --judge deepseek` enables the optional LLM judge for semantic checkpoints, the nodes
+without measurable quantities that no code pattern matched. It calls the DeepSeek chat-completions API
+using only the standard library. Configure it with a `.env` file:
+
+```bash
+cp .env.example .env && chmod 600 .env   # then set DEEPSEEK_API_KEY
+.venv/bin/gce score --judge deepseek --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
+```
+
+Exported variables take precedence over `.env`. `--env-file` points at another file, and
+`deepseek:<model>` overrides `DEEPSEEK_MODEL`. Set `GCE_JUDGE_CACHE` to a directory to cache verdicts
+and make re-scoring free and deterministic.
 
 When the checkout lives in an iCloud-synced folder (e.g. `~/Documents`), sync can mark the
 editable-install `.pth` file hidden, and Python 3.12+ then skips it (`import gce` fails). Keep the
