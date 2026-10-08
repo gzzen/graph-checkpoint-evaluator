@@ -15,3 +15,4 @@
 - Report section "Paths per question": per-task Mermaid path diagram (nodes coloured by run outcomes) and a text grid of states and observed values per run (`gce report --graphs`).
 - Path views moved to one Markdown file per task group (`paths/<group>.md`, linked from `summary.md`), with outcomes written in words and a definitions table instead of symbols.
 - Path views are isolated per running condition: `paths/<condition>/<group>.md` (experiment added to the directory name when conditions share a name).
+- Each path file opens with the full checkpoint graph of its group (Mermaid, coloured by the condition's outcomes) and a checkpoint table (description, expected value, questions using it).

@@ -20,9 +20,13 @@ def test_one_document_per_group_with_a_view_per_task():
     docs = group_documents(evals, [graph])
     assert sorted(docs) == [("group", "demo/two-sample"), ("single", "demo/two-sample")]  # conditions never pooled
     group = docs[("group", "demo/two-sample")]
-    assert group.count("```mermaid") == 2 and "## demo-q1" in group and "## demo-q2" in group
+    assert group.count("```mermaid") == 3 and "## demo-q1" in group and "## demo-q2" in group  # full graph + 2 tasks
     single = docs[("single", "demo/two-sample")]
     assert "## demo-q2" not in single and "seed 1" in single and "seed 2" in single
+    assert single.index("## Full checkpoint graph") < single.index("## demo-q1")
+    full = single.split("## Full checkpoint graph")[1].split("## demo-q1")[0]
+    assert "n_cohort_all" in full and "Not evaluated" in full     # whole graph, incl. q2-only nodes
+    assert "answer to demo-q2" in full and "| n_load | inputs |" in full
     text = group + single
     q1 = single.split("## demo-q1")[1]
     assert "**Fail: 100** (first failure)" in q1          # wrong run stops at the hidden cohort step

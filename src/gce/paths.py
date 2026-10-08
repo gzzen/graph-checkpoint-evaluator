@@ -163,6 +163,44 @@ def mermaid(path: list[str], runs: list[dict], graph: Graph | None) -> list[str]
     return lines
 
 
+def full_graph(graph: Graph, runs: list[dict]) -> list[str]:
+    """Mermaid diagram of the whole task group's graph, coloured by this condition's outcomes, followed
+    by a table describing every checkpoint and the questions whose path uses it."""
+    states_by_node: dict[str, Counter] = defaultdict(Counter)
+    for doc in runs:
+        for nid, node in doc["nodes"].items():
+            states_by_node[nid][node["state"]] += 1
+    answer_of = {t.answer_node: [] for t in graph.tasks.values()}
+    for t in graph.tasks.values():
+        answer_of[t.answer_node].append(t.id)
+    lines = ["```mermaid", "flowchart LR"]
+    for nid in graph.topo_order():
+        node = graph.nodes[nid]
+        notes = [node.stage_type]
+        if node.hidden:
+            notes.append("hidden decision")
+        if not node.gating:
+            notes.append("non-gating")
+        if nid in answer_of:
+            notes.append("answer to " + ", ".join(answer_of[nid]))
+        states = states_by_node.get(nid, Counter())
+        counts = ", ".join(f"{STATE_TEXT[s]} {states[s]}" for s in STATE_ORDER if states[s]) or "Not evaluated"
+        cls = _node_class(states) if states else "absent"
+        lines.append(f'  {_mermaid_id(nid)}["{nid}<br/><small>{", ".join(notes)}</small><br/>{counts}"]:::{cls}')
+    for nid in graph.topo_order():
+        for dep in graph.nodes[nid].depends_on:
+            lines.append(f"  {_mermaid_id(dep)} --> {_mermaid_id(nid)}")
+    lines += [line for line in mermaid([], [], None) if line.startswith("  classDef")] + ["```", ""]
+    lines += ["| Checkpoint | Stage | Hidden decision | Gating | Description | Expected | Used by questions |", "|---|---|---|---|---|---|---|"]
+    for nid in graph.topo_order():
+        node = graph.nodes[nid]
+        used = ", ".join(t for t in sorted(graph.tasks, key=_task_order) if nid in graph.task_path(t))
+        desc = " ".join(node.description.split()).replace("|", "/")
+        lines.append(f"| {nid} | {node.stage_type} | {'Yes' if node.hidden else 'No'} | {'Yes' if node.gating else 'No'} | {desc} | "
+                     f"{_expected(graph, nid)} | {used} |")
+    return lines
+
+
 def task_table(task: str, path: list[str], runs: list[dict], graph: Graph | None) -> list[str]:
     headers = ["Checkpoint", "Stage", "Hidden decision", "Gating", "Expected", *[_run_label(r) for r in runs]]
     lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
@@ -231,6 +269,12 @@ def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dic
                   "Only runs of this condition are included.", ""]
         lines += ["## Definitions", "", "| Term | Meaning |", "|---|---|"]
         lines += [f"| {term} | {meaning} |" for term, meaning in DEFINITIONS] + [""]
+        if graph:
+            unit_runs = list({d["run"]["run_unit_id"]: d for docs in tasks.values() for d in docs}.values())
+            lines += ["## Full checkpoint graph", "",
+                      f"All checkpoints of {group_id} and their dependencies. Counts are outcomes over the "
+                      f"{len(unit_runs)} run(s) of this condition that evaluated each checkpoint.", ""]
+            lines += full_graph(graph, unit_runs) + [""]
         for task in sorted(tasks, key=_task_order):
             runs = sorted(tasks[task], key=lambda d: (str(d["run"].get("seed")), d["run"]["run_unit_id"]))
             path = runs[0]["tasks"][task]["path"]

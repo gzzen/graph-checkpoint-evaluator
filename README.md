@@ -62,7 +62,9 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 
 `gce report` also writes `paths/<condition>/<group>.md`, one file per running condition and task group
 (e.g. `paths/native/bix-10.md` and `paths/b/bix-10.md`; conditions are never pooled), which
-`summary.md` links to. For every question the file shows:
+`summary.md` links to. Each file opens with the full checkpoint graph of the group (all checkpoints and
+edges, coloured by that condition's outcomes, plus a table of every checkpoint and the questions that
+use it). Then, for every question, it shows:
 - a Mermaid diagram of the checkpoint path, each checkpoint coloured by the outcomes the runs reached
   there;
 - a table with one column per run, giving the outcome and the produced value at every checkpoint, the
