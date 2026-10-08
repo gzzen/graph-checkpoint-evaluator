@@ -9,6 +9,7 @@ from statistics import mean
 from typing import Any
 
 from .io import load_doc
+from .paths import paths_markdown
 
 TASK_FIELDS = [
     "experiment", "condition", "seed", "run_unit_id", "group_id", "unit_tasks", "task", "answer_status",
@@ -89,7 +90,7 @@ def shared_node_variance(evals: list[dict]) -> list[dict]:
             for (cond, g, node), v in sorted(acc.items(), key=lambda kv: (str(kv[0][0]), kv[0][1], kv[0][2]))]
 
 
-def summary_markdown(evals: list[dict]) -> str:
+def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
     rows = task_rows(evals)
     lines = ["# Checkpoint evaluation summary", "", f"{len(evals)} run-unit evaluations, {len(rows)} task results.", ""]
 
@@ -138,12 +139,13 @@ def summary_markdown(evals: list[dict]) -> str:
         lines += ["## Checkpoints that vary across run units of the same condition", ""]
         lines += _table(["condition", "group", "node", "units", "states", "distinct observed"],
                         [[v["condition"], v["group_id"], v["node"], v["units"], json.dumps(v["states"]), v["distinct_observed"]] for v in variance]) + [""]
+    lines += paths_markdown(evals, graphs)
     return "\n".join(lines)
 
 
-def write_report(evals: list[dict], out: str | Path) -> Path:
+def write_report(evals: list[dict], out: str | Path, graphs: list | None = None) -> Path:
     out = Path(out)
     _write_csv(out / "tasks.csv", task_rows(evals), TASK_FIELDS)
     _write_csv(out / "nodes.csv", node_rows(evals), NODE_FIELDS)
-    (out / "summary.md").write_text(summary_markdown(evals), encoding="utf-8")
+    (out / "summary.md").write_text(summary_markdown(evals, graphs), encoding="utf-8")
     return out

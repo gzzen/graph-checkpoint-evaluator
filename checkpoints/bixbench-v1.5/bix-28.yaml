@@ -66,14 +66,10 @@ nodes:
     params: {tool: BUSCO 5.8.0, mode: proteins, lineage: eukaryota_odb10}
     quantities:
       - {name: n_markers, expected: {type: integer, value: 255}, aliases: [busco_markers, n_buscos], context: ["n:", "BUSCO", "marker"]}
-      - {name: single_copy_pct_mmus, expected: {type: percent, value: 44.3, abs_tol: 1.0}, context: ["S:"]}
-      - {name: single_copy_pct_xlae, expected: {type: percent, value: 27.1, abs_tol: 1.0}, context: ["S:"]}
-      - {name: single_copy_pct_ggal, expected: {type: percent, value: 51.0, abs_tol: 1.0}, context: ["S:"]}
-      - {name: single_copy_pct_umay, expected: {type: percent, value: 98.8, abs_tol: 0.5}, context: ["S:"]}
     require: any
     probe:
       patterns: ["busco", "odb10"]
-    provenance: {source: printed, ref: "cell 18 BUSCO summaries (S: Cele 87.1, Ggal 51.0, Mmus 44.3, Xlae 27.1, Ncra 92.9, Scer 92.9, Spom 95.7, Umay 98.8 %)"}
+    provenance: {source: printed, ref: "cell 18 BUSCO summaries (single-copy S%: Cele 87.1, Ggal 51.0, Mmus 44.3, Xlae 27.1, Ncra 92.9, Scer 92.9, Spom 95.7, Umay 98.8; not checked because harness data ships BUSCO results and percentages match unrelated numbers)"}
   - id: tf_align
     stage_type: transform
     description: For each single-copy ortholog and lineage, build a multi-FASTA across the lineage's species, align it and trim the alignment.

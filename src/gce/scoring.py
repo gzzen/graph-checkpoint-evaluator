@@ -81,14 +81,14 @@ def _representative(spec: dict) -> float | None:
 
 def _ambiguous_quantities(graph: Graph) -> set[tuple[str, str]]:
     """(node, quantity) pairs whose expectation is also met by a *different* quantity's reference value
-    elsewhere in the graph. The same quantity repeated on another node (same name and spec, e.g. a
-    result node and the answer node reporting it) is not ambiguous."""
+    elsewhere in the graph. The same quantity repeated on another node (same name, e.g. a result node
+    and the answer node reporting it, possibly with the official tolerance) is not ambiguous."""
     out = set()
     for node in graph.nodes.values():
         for q in node.quantities:
             for other in graph.nodes.values():
                 for q2 in other.quantities:
-                    if other.id == node.id or (q2.name == q.name and q2.expected == q.expected):
+                    if other.id == node.id or q2.name == q.name:
                         continue
                     value = _representative(q2.expected)
                     if value is not None and matches(q.expected, value):

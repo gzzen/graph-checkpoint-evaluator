@@ -57,8 +57,13 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce validate checkpoints/bixbench-v1.5/*.yaml
 .venv/bin/gce adapt --adapter canonical_dir --run-root path/to/runs --out out/traces
 .venv/bin/gce score --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
-.venv/bin/gce report --evals out/eval --out out/report   # summary.md, tasks.csv, nodes.csv
+.venv/bin/gce report --evals out/eval --graphs checkpoints/bixbench-v1.5 --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
+
+`summary.md` ends with **Paths per question**. For every question it shows a Mermaid diagram of its
+checkpoint path, each node coloured by how far the runs got. Below that is a grid of state symbols and
+observed values, one column per run, with depth reached, the node where each run stopped, and its final
+answer. Pass `--graphs` to add stage labels, expected values and the graph's edges.
 
 `gce score --judge deepseek` enables the optional LLM judge for semantic checkpoints, the nodes
 without measurable quantities that no code pattern matched. It calls the DeepSeek chat-completions API

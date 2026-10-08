@@ -133,7 +133,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     from .report import load_evaluations, write_report
 
     evals = load_evaluations(args.evals)
-    out = write_report(evals, args.out)
+    out = write_report(evals, args.out, load_graphs(args.graphs) if args.graphs else None)
     print(f"report for {len(evals)} evaluations in {out}/ (summary.md, tasks.csv, nodes.csv)")
     return 0
 
@@ -176,6 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("report", help="aggregate evaluations into summary.md, tasks.csv, nodes.csv")
     p.add_argument("--evals", nargs="+", required=True, help="evaluation files or directories")
+    p.add_argument("--graphs", nargs="*", help="graphs, for stage labels, expected values and DAG edges in the path views")
     p.add_argument("--out", required=True)
     p.set_defaults(func=cmd_report)
     return parser
