@@ -27,6 +27,12 @@ def test_one_document_per_group_with_a_view_per_task():
     full = single.split("## Full checkpoint graph")[1].split("## demo-q1")[0]
     assert "n_cohort_all" in full and "Not evaluated" in full     # whole graph, incl. q2-only nodes
     assert "answer to demo-q2" in full and "| n_load | inputs |" in full
+    names = single.split("## Reading the checkpoint names")[1].split("## Definitions")[0]
+    assert "| n_ | " in names and "| a_ | Answer:" in names and "n_cohort_all of n_cohort" in names
+    q1 = single.split("## demo-q1")[1]
+    assert "| n_cohort | Exclude the two outlier samples" in q1 and "(a reference choice the question does not state)" in q1
+    assert "| n_load | Load the measurement table. | All questions |" in q1
+    assert "| a_q1 | The value this question asks for:" in q1
     text = group + single
     q1 = single.split("## demo-q1")[1]
     assert "**Fail: 100** (first failure)" in q1          # wrong run stops at the hidden cohort step

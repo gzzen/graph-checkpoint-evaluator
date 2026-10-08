@@ -163,6 +163,68 @@ def mermaid(path: list[str], runs: list[dict], graph: Graph | None) -> list[str]
     return lines
 
 
+PREFIX_MEANING = {
+    "in": "Inputs: the data files are located and loaded",
+    "co": "Cohort: which samples or subjects enter the analysis (groups, exclusions, aggregation)",
+    "fl": "Filter: records or features removed before analysis",
+    "tf": "Transform: data recoded, normalised or processed (e.g. encoding, alignment, trees)",
+    "md": "Model: the statistical model that is fitted",
+    "st": "Statistical test: the test that is performed",
+    "r": "Result: the numbers the model, test or processing produces",
+    "d": "Downstream: thresholds, set operations, enrichment or summary statistics",
+    "a": "Answer: the quantity the question asks for; a_qN answers question N",
+}
+STAGE_MEANING = {
+    "inputs": "Inputs", "cohort": "Cohort", "filter": "Filter", "transform": "Transform", "model": "Model",
+    "result_table": "Result", "downstream": "Downstream", "answer": "Answer",
+}
+
+
+def _prefix(node_id: str) -> str:
+    return node_id.split("_", 1)[0] if "_" in node_id else node_id
+
+
+def naming_section(graph: Graph) -> list[str]:
+    """Explain the checkpoint-ID convention for the prefixes this graph actually uses."""
+    by_prefix: dict[str, list[str]] = defaultdict(list)
+    for nid in graph.topo_order():
+        by_prefix[_prefix(nid)].append(nid)
+    lines = ["## Reading the checkpoint names", "",
+             "Each checkpoint ID starts with a prefix for its role in the analysis, followed by a short name for "
+             "what it holds (for example `r_or_bcg` is the result holding the odds ratio for BCG).", "",
+             "| Prefix | Meaning | Checkpoints in this graph |", "|---|---|---|"]
+    for prefix, ids in by_prefix.items():
+        stages = sorted({graph.nodes[n].stage_type for n in ids})
+        meaning = PREFIX_MEANING.get(prefix) or "; ".join(STAGE_MEANING.get(st, st) for st in stages)
+        shown = ", ".join(ids[:6]) + (", ..." if len(ids) > 6 else "")
+        lines.append(f"| {prefix}_ | {meaning} | {shown} |")
+    variants = [n for n in graph.topo_order() if graph.nodes[n].variant_of]
+    lines.append("")
+    if variants:
+        lines += [f"A checkpoint marked as a variant (e.g. {variants[0]} of {graph.nodes[variants[0]].variant_of}) is the same "
+                  "step with the parameters one question states; it is used to detect settings carried over between questions.", ""]
+    return lines
+
+
+def path_explanation(task: str, path: list[str], graph: Graph) -> list[str]:
+    """What each checkpoint on a task's path represents for that question, and whether it is shared."""
+    lines = ["| Checkpoint | What it represents for this question | Shared with |", "|---|---|---|"]
+    answer = graph.tasks[task].answer_node
+    for nid in path:
+        node = graph.nodes[nid]
+        others = [t for t in sorted(graph.tasks, key=_task_order) if t != task and nid in graph.task_path(t)]
+        desc = " ".join(node.description.split()).replace("|", "/")
+        if nid == answer:
+            desc = f"The value this question asks for: {desc[0].lower() + desc[1:]}"
+        if node.hidden:
+            desc += " (a reference choice the question does not state)"
+        if not node.gating:
+            desc += " (reported, but does not block the answer)"
+        shared = "Only this question" if not others else ("All questions" if len(others) == len(graph.tasks) - 1 else ", ".join(others))
+        lines.append(f"| {nid} | {desc} | {shared} |")
+    return lines
+
+
 def full_graph(graph: Graph, runs: list[dict]) -> list[str]:
     """Mermaid diagram of the whole task group's graph, coloured by this condition's outcomes, followed
     by a table describing every checkpoint and the questions whose path uses it."""
@@ -267,6 +329,8 @@ def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dic
             lines += [f"{title}.", ""]
         lines += [f"Experiment: {sample.get('experiment') or 'unlabelled'}. Condition: {sample.get('condition') or 'unlabelled'}. "
                   "Only runs of this condition are included.", ""]
+        if graph:
+            lines += naming_section(graph)
         lines += ["## Definitions", "", "| Term | Meaning |", "|---|---|"]
         lines += [f"| {term} | {meaning} |" for term, meaning in DEFINITIONS] + [""]
         if graph:
@@ -281,6 +345,8 @@ def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dic
             lines += [f"## {task}", ""]
             if graph and task in graph.tasks and graph.tasks[task].question:
                 lines += [f"Question: {graph.tasks[task].question}", ""]
+            if graph and task in graph.tasks:
+                lines += ["### Checkpoints on this question's path", ""] + path_explanation(task, path, graph) + [""]
             lines += ["### Checkpoint path", ""] + mermaid(path, runs, graph) + [""]
             lines += ["### Outcome per run", ""] + task_table(task, path, runs, graph) + [""]
         documents[(cond_dir, group_id)] = "\n".join(lines)
