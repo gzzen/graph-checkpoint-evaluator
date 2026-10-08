@@ -77,3 +77,21 @@ def test_fail_needs_a_name_label_not_just_context():
                        "output": "Dep. Variable: sev   No. Observations: 194"}])
     res = probe_quantity(quantity, labelled, ["t"])
     assert (res.state, res.observed, res.confidence) == ("fail", 194.0, "low")
+
+
+def test_context_must_label_the_value_by_position():
+    spec = {"type": "range", "min": 24, "max": 26}  # small integer range: needs a label
+    quantity = q(spec, context=["reduc"])
+    other_model = trace([{"kind": "exec", "tool": "shell", "input": "python m.py",
+                          "output": "OR(interact)=2.9249 95%CI=(0.3416,25.0462) p=0.3273 reduction%=-192.49"}])
+    assert probe_quantity(quantity, other_model, ["t"]).state == "absent"
+    labelled = trace([{"kind": "exec", "tool": "shell", "input": "python m.py", "output": "OR=0.755 reduction: 24.5%"}])
+    assert probe_quantity(quantity, labelled, ["t"]).state == "pass"
+    trailing = trace([{"kind": "exec", "tool": "shell", "input": "python m.py", "output": "analysed 791 subjects"}])
+    assert probe_quantity(q({"type": "integer", "value": 791}, context=["subjects?"]), trailing, ["t"]).state == "pass"
+
+
+def test_small_integers_in_data_previews_need_a_label():
+    preview = trace([{"kind": "exec", "tool": "shell", "input": "python head.py",
+                      "output": "BCG COVID-19 1.0 No Resolved 354.0 363.0 RTI 2185 BCG5285"}])
+    assert probe_quantity(q({"type": "integer", "value": 354}, context=["Placebo"]), preview, ["t"]).state == "absent"

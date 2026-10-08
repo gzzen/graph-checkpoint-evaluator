@@ -250,13 +250,16 @@ def is_low_specificity(spec: dict) -> bool:
     if kind == "any_of":
         return any(is_low_specificity(o) for o in spec["options"])
     if kind == "integer":
-        return abs(int(spec["value"])) < 10
+        # small counts recur in data previews (days, IDs, tallies); accept them only when labelled
+        return abs(int(spec["value"])) < 1000
     if kind == "number":
         v = float(spec["value"])
         return (v == int(v) and abs(v) < 10) or number_tolerance(spec) >= 0.2 * max(abs(v), _EPS)
     if kind == "range":
         lo, hi = sorted((float(spec["min"]), float(spec["max"])))
-        return lo <= 0 <= hi or (hi - lo) >= 0.1 * max(abs(lo), abs(hi))
+        # e.g. (24, 26): small integer ranges are hit by ordinary tallies (counts of events, genes, rows)
+        integer_counts = lo == int(lo) and hi == int(hi) and hi - lo >= 1 and max(abs(lo), abs(hi)) <= 1000
+        return lo <= 0 <= hi or integer_counts or (hi - lo) >= 0.1 * max(abs(lo), abs(hi))
     if kind == "percent":
         return float(spec["value"]) in {0.0, 100.0} or _percent_tolerance(spec) >= 2.5
     if kind == "label":

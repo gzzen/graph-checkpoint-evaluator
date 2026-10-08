@@ -10,6 +10,8 @@ source:
   archetype: tabular_stats
   data: [TASK008_BCG-CORONA_AE.csv, TASK008_BCG-CORONA_DM.csv, TASK008_BCG-CORONA_EX.csv]
 notes: >-
+  Intermediate checkpoints use the reference values with a numerical tolerance; only answer nodes use
+  the official answer ranges (a different cohort can land inside a wide official range by chance).
   Severity is the per-subject maximum of AESEV over adverse events; subjects with any missing AESEV/AEHS are
   dropped (791 analysed). Chi-square tests use the full 4-level AESEV x treatment table (dof 3) within each
   subgroup. The ordinal model enters patients_seen as one label-encoded covariate (0, 1, 2).
@@ -74,7 +76,7 @@ nodes:
     hidden: true
     params: {missing: "dropna over AESEV and AEHS; 209 subjects without AESEV removed"}
     quantities:
-      - {name: n_analysed, expected: {type: integer, value: 791}, aliases: [n_complete, n_obs, observations, n_analyzed], context: ["Observations", "analy[sz]", "complete", "rows", "subjects"]}
+      - {name: n_analysed, expected: {type: integer, value: 791}, aliases: [n_complete, n_obs, observations, n_analyzed], context: ["Observations", "analy[sz]", "complete", "rows", "subjects", "\\bn\\s*="]}
       - {name: n_bcg, expected: {type: integer, value: 437}, aliases: [bcg_n, n_bcg_group], context: ["BCG"]}
       - {name: n_placebo, expected: {type: integer, value: 354}, aliases: [placebo_n, n_placebo_group], context: ["Placebo"]}
     require: any
@@ -167,14 +169,14 @@ nodes:
     description: Odds ratio for BCG vaccination from the ordinal model.
     depends_on: [md_ordinal]
     quantities:
-      - {name: or_bcg, expected: {type: range, min: 1.50, max: 1.54}, aliases: [odds_ratio_bcg, or_trtgrp, TRTGRP_cat], context: ["TRTGRP", "BCG", "vacc"]}
+      - {name: or_bcg, expected: {type: number, value: 1.5242, abs_tol: 0.005}, aliases: [odds_ratio_bcg, or_trtgrp, TRTGRP_cat], context: ["TRTGRP", "BCG", "vacc"]}
     provenance: {source: printed, ref: "cell 42 (TRTGRP_cat OR 1.524242)"}
   - id: r_or_expect
     stage_type: result_table
     description: Odds ratio for expected patient interaction from the ordinal model.
     depends_on: [md_ordinal]
     quantities:
-      - {name: or_expect_interact, expected: {type: range, min: 0.74, max: 0.77}, aliases: [odds_ratio_expect_interact, expect_interact_cat], context: ["expect", "interact"]}
+      - {name: or_expect_interact, expected: {type: number, value: 0.7550, abs_tol: 0.005}, aliases: [odds_ratio_expect_interact, expect_interact_cat], context: ["expect", "interact"]}
     provenance: {source: printed, ref: "cell 42 (expect_interact_cat OR 0.754981)"}
   - id: a_q1
     stage_type: answer
@@ -195,5 +197,5 @@ nodes:
     description: Percentage reduction in odds for expected interaction, (1 - OR) x 100.
     depends_on: [r_or_expect]
     quantities:
-      - {name: pct_reduction, expected: {type: range, min: 24, max: 26}, context: ["reduc", "%"]}
+      - {name: pct_reduction, expected: {type: range, min: 24, max: 26}, context: ["reduc"]}
     provenance: {source: derived, ref: "(1 - 0.754981) x 100 = 24.5"}

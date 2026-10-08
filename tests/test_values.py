@@ -110,5 +110,7 @@ def test_infer_spec(text, spec):
 def test_low_specificity():
     assert is_low_specificity({"type": "integer", "value": 2})
     assert is_low_specificity({"type": "range", "min": 0.8, "max": 1.0})
+    assert is_low_specificity({"type": "range", "min": 24, "max": 26})  # integer tallies fall in by chance
+    assert not is_low_specificity({"type": "range", "min": 157500, "max": 158000})
     assert not is_low_specificity({"type": "integer", "value": 4550})
     assert not is_low_specificity({"type": "number", "value": 0.0002045, "sig_figs": 4})

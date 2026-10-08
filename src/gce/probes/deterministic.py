@@ -26,7 +26,6 @@ from ..graph import Node, Quantity
 from ..trace import Step, Trace
 from ..values import NUMERIC_TYPES, _decimals, find_in_text, infer_spec, is_low_specificity, matches, scan_numbers
 
-CONTEXT_WINDOW = 160
 SNIPPET = 120
 RESULT_KINDS = {"exec", "tool_call", "message"}
 LABELLED = re.compile(r"\s*(?:\([^)\n]{0,20}\))?\s*[:=]\s*([-−+]?[\d.,]+(?:[eE][-+]?\d+)?%?)")
@@ -117,22 +116,29 @@ def _context_patterns(q: Quantity) -> list[re.Pattern]:
     return [re.compile(c, re.IGNORECASE) for c in q.context]
 
 
-def _line_context(text: str, start: int, end: int) -> str:
-    """The line holding a hit, plus the previous non-empty line when the hit's line has no words
-    (value rows of printed tables and R vectors carry their labels on the line above)."""
+def _near(patterns: list[re.Pattern], text: str, start: int, end: int) -> bool:
+    """Whether a context pattern labels the hit at text[start:end].
+
+    On a line with words, the context must precede the value ("samples after exclusion: 98",
+    "1-50: chi2=9.42 p=0.024") or follow it with no other number in between ("791 subjects"); a
+    context word elsewhere on a busy line labels some other value. A values-only line (printed table
+    rows, R vectors) takes its labels from the previous line.
+    """
     line_start = text.rfind("\n", 0, start) + 1
     line_end = text.find("\n", end)
     line = text[line_start: line_end if line_end != -1 else len(text)]
+    hs, he = start - line_start, end - line_start
     if not re.search(r"[A-Za-z]{2,}", re.sub(r"\[\d+\]", "", line)):
         before = text[:line_start].rstrip("\n")
-        prev = before[before.rfind("\n") + 1:]
-        line = prev + "\n" + line
-    return line[-CONTEXT_WINDOW * 2:]
-
-
-def _near(patterns: list[re.Pattern], text: str, start: int, end: int) -> bool:
-    context = _line_context(text, start, end)
-    return any(p.search(context) for p in patterns)
+        header = before[before.rfind("\n") + 1:]
+        return any(p.search(header) or p.search(line) for p in patterns)
+    for pattern in patterns:
+        for m in pattern.finditer(line):
+            if m.end() <= hs or (m.start() < he and m.end() > hs):
+                return True
+            if m.start() >= he and not scan_numbers(line[he:m.start()]):
+                return True
+    return False
 
 
 def _corroborated(value: Any, trace: Trace) -> Evidence | None:

@@ -14,6 +14,7 @@ from .values import answer_matches, matches
 
 PASSING = {"pass", "implied", "n/a"}
 FAILING = {"fail", "unsupported"}
+CATEGORICAL = {"label", "string", "boolean", "set"}
 
 
 @dataclass
@@ -119,6 +120,9 @@ class Scorer:
         """Answer nodes are decided by the final answer when one was given."""
         resolved = {t: trace.final_answers[t] for t in owners if t in trace.final_answers and trace.final_answers[t].status == "resolved"}
         if not resolved:
+            if node.quantities and all(q.expected["type"] in CATEGORICAL for q in node.quantities) and not trace.stage_log:
+                # a category merely mentioned in output ("1-50", a pathway name) is not a conclusion
+                return NodeResult(state="absent", note="categorical answer not reported; mentions in output are not conclusions")
             result = self._probe(node, trace, users)
             if result.state == "pass":
                 result.note = "value computed but not reported as a final answer"

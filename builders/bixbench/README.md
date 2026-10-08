@@ -32,6 +32,10 @@ python -m builders.bixbench rerun bix-13          # run reruns/bix-13.yaml; writ
    their expected values, `aliases`/`context` for the probes, and `provenance` (`printed` with the
    cell reference, `derived`, or `rerun`). Mark `hidden: true` for notebook decisions the question
    does not state.
+   Give intermediate checkpoints the reference value with a numerical tolerance (e.g. ±0.005), and
+   keep the official answer ranges for answer nodes only. A wide official range can be met by
+   chance by an analysis on a different cohort, and that false pass would then propagate upstream as
+   `implied`.
 3. **Re-run** whatever is not printed. Write `reruns/<sid>.yaml`:
    - instrumentation calls `gce_checkpoint(name, value, cell)`;
    - **anchors** are values the notebook did print, so drift between the notebook's environment and
