@@ -60,7 +60,8 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce report --evals out/eval --graphs checkpoints/bixbench-v1.5 --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
 
-`gce report` also writes `paths/<group>.md`, one file per task group (e.g. `paths/bix-10.md`), which
+`gce report` also writes `paths/<condition>/<group>.md`, one file per running condition and task group
+(e.g. `paths/native/bix-10.md` and `paths/b/bix-10.md`; conditions are never pooled), which
 `summary.md` links to. For every question the file shows:
 - a Mermaid diagram of the checkpoint path, each checkpoint coloured by the outcomes the runs reached
   there;

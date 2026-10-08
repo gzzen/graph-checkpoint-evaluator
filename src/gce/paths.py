@@ -86,8 +86,9 @@ def _expected(graph: Graph | None, node_id: str) -> str:
 
 
 def _run_label(doc: dict) -> str:
+    """Column label within one condition's document: the seed (or unit id) and whether it is a capsule run."""
     run = doc["run"]
-    parts = [str(run["condition"])] if run.get("condition") else []
+    parts = []
     if run.get("seed") is not None:
         parts.append(f"seed {run['seed']}")
     label = ", ".join(parts) or run["run_unit_id"].split("/")[-1]
@@ -196,31 +197,49 @@ def _task_order(task: str) -> tuple:
     return tuple(int(n) for n in re.findall(r"\d+", task)), task
 
 
-def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dict[str, str]:
-    """group_id -> Markdown document with the path views of every task of that group."""
+def condition_key(doc: dict) -> tuple[str, str]:
+    run = doc["run"]
+    return str(run.get("experiment") or ""), str(run.get("condition") or "unlabelled")
+
+
+def condition_dirs(evals: list[dict]) -> dict[tuple[str, str], str]:
+    """Directory name per (experiment, condition): the condition alone, unless two experiments share it."""
+    keys = sorted({condition_key(d) for d in evals})
+    clash = Counter(cond for _, cond in keys)
+    safe = lambda text: re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("_") or "unlabelled"
+    return {(exp, cond): safe(cond if clash[cond] == 1 or not exp else f"{exp}__{cond}") for exp, cond in keys}
+
+
+def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dict[tuple[str, str], str]:
+    """(condition directory, group_id) -> Markdown document with the path views of every task of that
+    group, computed from that condition's runs only, so running conditions are never pooled."""
     graph_by_group = {g.group_id: g for g in graphs or []}
-    by_group: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    dirs = condition_dirs(evals)
+    by_key: dict[tuple[str, str], dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for doc in evals:
         for task in doc["tasks"]:
-            by_group[doc["group_id"]][task].append(doc)
+            by_key[(dirs[condition_key(doc)], doc["group_id"])][task].append(doc)
     documents = {}
-    for group_id, tasks in sorted(by_group.items()):
+    for (cond_dir, group_id), tasks in sorted(by_key.items()):
         graph = graph_by_group.get(group_id)
+        sample = next(iter(tasks.values()))[0]["run"]
         title = graph.raw.get("title") if graph else None
-        lines = [f"# Checkpoint paths: {group_id}", ""]
+        lines = [f"# Checkpoint paths: {group_id}, condition {sample.get('condition') or 'unlabelled'}", ""]
         if title:
             lines += [f"{title}.", ""]
+        lines += [f"Experiment: {sample.get('experiment') or 'unlabelled'}. Condition: {sample.get('condition') or 'unlabelled'}. "
+                  "Only runs of this condition are included.", ""]
         lines += ["## Definitions", "", "| Term | Meaning |", "|---|---|"]
         lines += [f"| {term} | {meaning} |" for term, meaning in DEFINITIONS] + [""]
         for task in sorted(tasks, key=_task_order):
-            runs = sorted(tasks[task], key=lambda d: (str(d["run"].get("condition")), str(d["run"].get("seed")), d["run"]["run_unit_id"]))
+            runs = sorted(tasks[task], key=lambda d: (str(d["run"].get("seed")), d["run"]["run_unit_id"]))
             path = runs[0]["tasks"][task]["path"]
             lines += [f"## {task}", ""]
             if graph and task in graph.tasks and graph.tasks[task].question:
                 lines += [f"Question: {graph.tasks[task].question}", ""]
             lines += ["### Checkpoint path", ""] + mermaid(path, runs, graph) + [""]
             lines += ["### Outcome per run", ""] + task_table(task, path, runs, graph) + [""]
-        documents[group_id] = "\n".join(lines)
+        documents[(cond_dir, group_id)] = "\n".join(lines)
     return documents
 
 

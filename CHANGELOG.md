@@ -14,3 +14,4 @@
 - L1-L3 derivations for the 78-question subset (`builders/bixbench/derive.py`, evidence `derived_78_L1_L3.json`) and a bix-52 re-run (anchors reproduced; finds the notebook bug that saves Jackdaw chromosome lengths as Zebra Finch lengths).
 - Report section "Paths per question": per-task Mermaid path diagram (nodes coloured by run outcomes) and a text grid of states and observed values per run (`gce report --graphs`).
 - Path views moved to one Markdown file per task group (`paths/<group>.md`, linked from `summary.md`), with outcomes written in words and a definitions table instead of symbols.
+- Path views are isolated per running condition: `paths/<condition>/<group>.md` (experiment added to the directory name when conditions share a name).
