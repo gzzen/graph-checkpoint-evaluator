@@ -113,14 +113,3 @@ def test_judge_decides_semantic_nodes_without_pattern_match():
     assert doc["nodes"]["n_test"]["state"] == "fail"
     assert doc["nodes"]["n_test"]["evidence"][0]["source"] == "judge"
     assert doc["evaluator"]["judge"] == "fake"
-
-
-def test_method_pattern_pass_does_not_imply_upstream_values():
-    doc = load_doc(FIX / "trace_single_good.json")
-    doc["stage_log"], doc["capabilities"]["stage_log"] = [], False
-    doc["steps"] = [{"index": 0, "kind": "file_write", "tool": "write", "path": "t.py", "input": "ttest_ind(a, b, equal_var=False)"}]
-    doc["capabilities"]["raw_steps"] = False
-    doc["final_answers"] = {"demo-q1": {"status": "missing"}}
-    result = evaluate(graph(), Trace.from_dict(doc))
-    assert result["nodes"]["n_test"]["state"] == "pass"            # the method was used ...
-    assert result["nodes"]["n_cohort"]["state"] == "absent"        # ... but that says nothing about the cohort

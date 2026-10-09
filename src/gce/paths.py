@@ -267,11 +267,10 @@ def task_table(task: str, path: list[str], runs: list[dict], graph: Graph | None
     headers = ["Checkpoint", "Stage", "Hidden decision", "Gating", "Expected", *[_run_label(r) for r in runs]]
     lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
     stops = []
-    for r in runs:  # whichever comes first on the path: the first failure or the first gap
+    for r in runs:
         t = r["tasks"][task]
-        candidates = [(path.index(t[k]), t[k], label) for k, label in (("first_failure", "first failure"), ("first_gap", "first gap"))
-                      if t.get(k) in path]
-        stops.append(min(candidates)[1:] if candidates else (None, None))
+        stops.append((t["first_failure"], "first failure") if t.get("first_failure") else
+                     (t["first_gap"], "first gap") if t.get("first_gap") else (None, None))
     for nid in path:
         node = graph.nodes.get(nid) if graph else None
         meta = [node.stage_type, "Yes" if node.hidden else "No", "Yes" if node.gating else "No"] if node else ["", "", ""]
