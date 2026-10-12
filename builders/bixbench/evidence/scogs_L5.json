@@ -1,0 +1,73 @@
+{
+ "bix-45 rcv on mafft": {
+  "n_animals": 241,
+  "n_fungi": 255,
+  "mwu_U": 6115.0,
+  "mwu_p": 7.696760829801303e-54,
+  "median_fungi": 0.2212,
+  "median_animals": 0.1017,
+  "q75_fungi": 0.26755,
+  "median_paired_diff": 0.12310000000000001,
+  "n_paired": 241
+ },
+ "bix-45 rcv on mafft.clipkit": {
+  "n_animals": 241,
+  "n_fungi": 255,
+  "mwu_U": 8909.0,
+  "mwu_p": 1.0884470829353784e-42,
+  "median_fungi": 0.1972,
+  "median_animals": 0.1055,
+  "q75_fungi": 0.23285,
+  "median_paired_diff": 0.0928,
+  "n_paired": 241
+ },
+ "bix-25 treeness/rcv": {
+  "n_animals": 100,
+  "n_fungi": 249,
+  "median_fungi": 0.2585,
+  "q4 readings (> 70% gaps)": {
+   "clipkit gap_cells > 0.7": {
+    "n_genes": 0,
+    "max_tor": null
+   },
+   "clipkit gap_sites > 0.7": {
+    "n_genes": 0,
+    "max_tor": null
+   },
+   "mafft gap_cells > 0.7": {
+    "n_genes": 0,
+    "max_tor": null
+   },
+   "mafft gap_sites > 0.7": {
+    "n_genes": 3,
+    "max_tor": 0.3343
+   }
+  },
+  "q4 official": 0.21
+ },
+ "bix-60 treeness": {
+  "per_tree": {
+   "1003258": 0.0,
+   "100698": 0.0,
+   "1010730": 0.0,
+   "1014314": 0.0884,
+   "1018517": 0.0079,
+   "1019762": 0.0,
+   "1038775": 0.0,
+   "1041560": 0.0,
+   "1065019": 0.0,
+   "1079827": 0.0
+  },
+  "sum": 0.09630000000000001,
+  "mean_x1000 over 5 trees (first five)": 19,
+  "mean_x1000 over all 10 trees": 10,
+  "official": 19
+ },
+ "source": {
+  "zips": [
+   "scogs_animals.zip",
+   "scogs_fungi.zip"
+  ],
+  "note": "harness data of bix-25/28/38/45 (identical md5)"
+ }
+}

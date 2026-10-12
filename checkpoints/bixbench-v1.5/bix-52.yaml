@@ -1,0 +1,178 @@
+# BixBench v1.5 bix-52: density and chromosomal distribution of age-related CpGs in Jackdaw and Zebra Finch.
+# Reference: CapsuleNotebook-4dceea58 (R). Chi-square statistics and truncated per-chromosome tables are printed;
+# everything else comes from the R re-run, builders/bixbench/evidence/bix-52.json (all printed anchors reproduced).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-52
+title: Age-related CpG density per chromosome and uniformity tests in two bird genomes
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 4dceea58-7d66-4576-bfc6-88c026d5b7a9
+  archetype: tabular_stats
+  data: [JD_AgeRelated_CpG_noMT_Final.csv, JD_Chromosome_Length.csv, ZF_AgeRelated_CpG_noMT_Final.csv, ZF_Chromosome_Length.csv]
+  rerun_evidence: builders/bixbench/evidence/bix-52.json
+notes: >-
+  Rows are CpG x sample methylation calls. The filter keeps rows with methylation > 90% or < 10% (Zebra Finch
+  19,698 -> 539 rows, 19,159 removed; Jackdaw 24,527 -> 52). Density = distinct CpG positions per chromosome /
+  chromosome length; chromosomes without a length are dropped. The uniformity test is chisq.test of per-chromosome
+  counts against length-proportional probabilities. Notebook bug: cell 14 saved the Jackdaw lengths as
+  ZF_Chromosome_Length.csv, so both length files are identical. Three official answers match the Jackdaw values
+  or an inverted ratio, not the Zebra Finch values the questions name: q3 (Jackdaw chi-square 49.64; Zebra Finch
+  458.27), q5 (Jackdaw Z density 1.002e-07; Zebra Finch 6.389e-07) and q1 (chr1 / W = 0.658; W / chr1 = 1.520).
+  Each has a variant node holding the literal Zebra Finch reading.
+tasks:
+  - id: bix-52-q1
+    answer_node: a_q1
+    question: Ratio of filtered age-related CpG density between chromosome W and chromosome 1 in Zebra Finch (distinct sites).
+    ideal: {type: range, min: 0.47, max: 0.67}
+    label_status: mismatch
+    notes: The ideal is chr1 / W (0.658); W / chr1 as asked is 1.520 (variant a_q1_w_over_1).
+  - id: bix-52-q2
+    answer_node: a_q2
+    question: Genome-wide average chromosomal density of filtered unique age-related CpGs per bp in Jackdaw.
+    ideal: {type: range, min: 1.03e-07, max: 1.23e-07}
+    label_status: consistent
+  - id: bix-52-q3
+    answer_node: a_q3
+    question: Chi-square statistic for uniformity of filtered age-related CpGs across the Zebra Finch genome.
+    ideal: {type: range, min: 48, max: 50}
+    label_status: mismatch
+    notes: The ideal is the Jackdaw statistic (49.638); Zebra Finch gives 458.27 (variant a_q3_zf).
+  - id: bix-52-q5
+    answer_node: a_q5
+    question: Density of filtered age-related CpG sites on chromosome Z in Zebra Finch.
+    ideal: {type: range, min: 9.0e-08, max: 1.1e-07}
+    label_status: mismatch
+    notes: The ideal is the Jackdaw Z density (1.002e-07); Zebra Finch gives 6.389e-07 (variant a_q5_zf).
+  - id: bix-52-q6
+    answer_node: a_q6
+    question: Jackdaw chromosome with the highest density of age-related CpG sites.
+    ideal: {type: label, value: "Chromosome W"}
+    label_status: consistent
+  - id: bix-52-q7
+    answer_node: a_q7
+    question: Number of sites removed by the > 90% / < 10% methylation filter in Zebra Finch.
+    ideal: {type: integer, value: 19159}
+    label_status: consistent
+nodes:
+  - id: in_tables
+    stage_type: inputs
+    description: Load the age-related CpG tables and chromosome lengths for Jackdaw and Zebra Finch.
+    quantities:
+      - {name: jd_rows_all, expected: {type: integer, value: 24527}, aliases: [jd_rows], context: ["Rows", "Jackdaw", "JD"]}
+      - {name: zf_rows_all, expected: {type: integer, value: 19698}, aliases: [zf_rows], context: ["Rows", "Zebra", "ZF"]}
+    require: any
+    provenance: {source: printed, ref: "cell 15 (Rows: 24527); evidence zf_rows_all"}
+  - id: fl_methylation
+    stage_type: filter
+    description: Keep rows with methylation above 90% or below 10%.
+    depends_on: [in_tables]
+    params: {keep: "methylation > 90 or < 10"}
+    quantities:
+      - {name: zf_rows_filtered, expected: {type: integer, value: 539}, aliases: [zf_kept], context: ["Zebra", "ZF", "kept", "remain"]}
+      - {name: jd_rows_filtered, expected: {type: integer, value: 52}, aliases: [jd_kept], context: ["Jackdaw", "JD", "kept", "remain"]}
+    require: any
+    provenance: {source: rerun, ref: "evidence zf_rows_filtered, jd_rows_filtered"}
+  - id: a_q7
+    stage_type: answer
+    description: Zebra Finch rows removed by the filter (19,159 of 19,698; 849 distinct positions).
+    depends_on: [fl_methylation]
+    quantities:
+      - {name: zf_rows_removed, expected: {type: integer, value: 19159}, aliases: [removed, n_removed], context: ["remov", "filtered out", "drop"]}
+    provenance: {source: rerun, ref: "evidence zf_rows_removed"}
+  - id: tf_density
+    stage_type: transform
+    description: Count distinct CpG positions per chromosome, join chromosome lengths and divide (density per bp).
+    depends_on: [fl_methylation]
+    hidden: true
+    params: {count: "n_distinct(Pos) per Chromosome", drop: "chromosomes without a length"}
+    probe:
+      patterns: ["n_distinct", "nunique", "drop_duplicates", "distinct\\("]
+    provenance: {source: printed, ref: "count_cpgs_by_chrom (cells 25-31)"}
+  - id: r_density_jd
+    stage_type: result_table
+    description: Filtered Jackdaw densities per chromosome (20 chromosomes; W highest at 4.45e-07).
+    depends_on: [tf_density]
+    quantities:
+      - {name: jd_density_w, expected: {type: number, value: 4.4495e-07, sig_figs: 3}, aliases: [cpg_density], context: ["\\bW\\b"]}
+      - {name: jd_density_z, expected: {type: number, value: 1.00218e-07, sig_figs: 3}, aliases: [cpg_density], context: ["\\bZ\\b"]}
+    require: any
+    provenance: {source: printed, ref: "cell 39 (20-row table); evidence jd_filtered_by_chrom"}
+  - id: r_density_zf
+    stage_type: result_table
+    description: Filtered Zebra Finch densities per chromosome (30 chromosomes; Z 6.389e-07).
+    depends_on: [tf_density]
+    quantities:
+      - {name: zf_density_z, expected: {type: number, value: 6.38889e-07, sig_figs: 3}, aliases: [cpg_density], context: ["\\bZ\\b"]}
+      - {name: zf_density_chr1, expected: {type: number, value: 2.92745e-07, sig_figs: 3}, aliases: [cpg_density], context: ["chr(omosome)? ?1\\b"]}
+    require: any
+    provenance: {source: rerun, ref: "evidence zf_filtered_by_chrom"}
+  - id: a_q2
+    stage_type: answer
+    description: Mean over the 20 Jackdaw chromosomes of filtered density (1.128e-07; the pooled total/length 6.01e-08 is not it).
+    depends_on: [r_density_jd]
+    quantities:
+      - {name: jd_mean_chrom_density, expected: {type: range, min: 1.03e-07, max: 1.23e-07}, aliases: [mean_density], context: ["mean", "average", "genome"]}
+    provenance: {source: rerun, ref: "evidence jd_filtered_mean_chrom_density"}
+  - id: a_q6
+    stage_type: answer
+    description: Jackdaw chromosome with the highest filtered density (W).
+    depends_on: [r_density_jd]
+    quantities:
+      - {name: jd_top_chromosome, expected: {type: label, value: "Chromosome W", synonyms: ["W", "chrW", "chr W"]}}
+    provenance: {source: printed, ref: "cell 39; evidence jd_filtered_by_chrom"}
+  - id: a_q5
+    stage_type: answer
+    description: Official q5 value, the filtered Z density in Jackdaw (1.002e-07).
+    depends_on: [r_density_jd]
+    quantities:
+      - {name: z_density, expected: {type: range, min: 9.0e-08, max: 1.1e-07}, aliases: [cpg_density], context: ["\\bZ\\b"]}
+    provenance: {source: rerun, ref: "evidence jd_filtered_Z_density"}
+  - id: a_q5_zf
+    stage_type: answer
+    description: Literal q5, the filtered Z density in Zebra Finch (6.389e-07).
+    depends_on: [r_density_zf]
+    variant_of: a_q5
+    gating: false
+    quantities:
+      - {name: zf_density_z, expected: {type: number, value: 6.38889e-07, sig_figs: 3}, aliases: [cpg_density], context: ["\\bZ\\b"]}
+    provenance: {source: rerun, ref: "evidence zf_filtered_Z_density"}
+  - id: a_q1
+    stage_type: answer
+    description: Official q1 value, Zebra Finch filtered density chr1 / W (0.658).
+    depends_on: [r_density_zf]
+    quantities:
+      - {name: ratio_w_chr1, expected: {type: range, min: 0.47, max: 0.67}, aliases: [ratio], context: ["ratio", "\\bW\\b"]}
+    provenance: {source: rerun, ref: "evidence chr1_over_W_zf_filtered"}
+  - id: a_q1_w_over_1
+    stage_type: answer
+    description: Literal q1, Zebra Finch filtered density W / chr1 (1.520).
+    depends_on: [r_density_zf]
+    variant_of: a_q1
+    gating: false
+    quantities:
+      - {name: ratio_w_over_chr1, expected: {type: number, value: 1.5199, abs_tol: 0.005}, aliases: [ratio], context: ["ratio", "\\bW\\b"]}
+    provenance: {source: rerun, ref: "evidence zf_filtered_W_over_1"}
+  - id: st_chisq
+    stage_type: model
+    description: Chi-square goodness-of-fit of per-chromosome CpG counts against length-proportional expectations.
+    depends_on: [tf_density]
+    probe:
+      patterns: ["chisq\\.test", "chisquare", "chi2"]
+    provenance: {source: printed, ref: "cells 35-39"}
+  - id: a_q3
+    stage_type: answer
+    description: Official q3 value, the filtered Jackdaw chi-square (49.638).
+    depends_on: [st_chisq, r_density_jd]
+    quantities:
+      - {name: chisq_filtered, expected: {type: range, min: 48, max: 50}, aliases: [X-squared, chi2, chi_square], context: ["X-squared", "chi"]}
+    provenance: {source: printed, ref: "cell 39 (X-squared = 49.638)"}
+  - id: a_q3_zf
+    stage_type: answer
+    description: Literal q3, the filtered Zebra Finch chi-square (458.27).
+    depends_on: [st_chisq, r_density_zf]
+    variant_of: a_q3
+    gating: false
+    quantities:
+      - {name: chisq_zf_filtered, expected: {type: number, value: 458.27, abs_tol: 0.01}, aliases: [X-squared, chi2, chi_square], context: ["X-squared", "chi"]}
+    provenance: {source: printed, ref: "cell 36 (X-squared = 458.27)"}

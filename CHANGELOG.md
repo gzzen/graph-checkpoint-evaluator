@@ -17,3 +17,6 @@
 - Path views are isolated per running condition: `paths/<condition>/<group>.md` (experiment added to the directory name when conditions share a name).
 - Each path file opens with the full checkpoint graph of its group (Mermaid, coloured by the condition's outcomes) and a checkpoint table (description, expected value, questions using it).
 - Path files explain checkpoint names: a prefix guide for the prefixes each graph uses, and per question a table of what every checkpoint on its path represents and which questions share it.
+- Checkpoint graphs for the remaining 17 capsules of the 78-question subset (bix-3, 6, 8, 22, 24, 25, 30, 33, 38, 39, 45, 46, 49, 52, 54, 60, 61): all 78 questions now have graphs and every answer node accepts its official ideal. Label mismatches carry variant nodes with the literal reading (bix-22-q6, bix-38-q6, bix-52-q1/q3/q5); bix-25-q4 is `unverified`.
+- `builders/bixbench/scogs.py`: PhyKIT statistics on the harness's scogs_*.zip (bix-45 RCV on untrimmed vs trimmed alignments, bix-25 treeness/RCV and gap readings, bix-60 treeness) -> `evidence/scogs_L5.json`.
+- Stricter low-specificity rule: numbers with tolerance >= 1% of the value and whole-percent percentages need a name or context label in free text.

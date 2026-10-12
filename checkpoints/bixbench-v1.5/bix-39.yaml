@@ -1,0 +1,81 @@
+# BixBench v1.5 bix-39: putative somatic (VAF < 0.3) CHIP variants per sample in Bloom syndrome trios.
+# Reference: CapsuleNotebook-28a5984e (R). Upstream counts and per-group summaries are printed (cells 15-19);
+# q2 is the difference of two printed quartiles (derived).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-39
+title: Somatic (VAF < 0.3) CHIP variant counts per sample by BLM mutation status
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 28a5984e-9061-4d6f-99a1-40f8753bc9f4
+  archetype: chip_variants
+  data: ["230215_Trio_Status.xlsx", "230214_Schenz_et_al_2022_CHIP_Genes.xlsx", "CHIP_DP10_GQ20_PASS/*.xlsx (86 samples; the harness ships them at the top level)"]
+notes: >-
+  Same upstream ladder as bix-7 (86 variant files -> non-reference calls -> 4,550 exonic calls after dropping
+  intronic, intergenic and UTR variants). Samples are grouped as BLM Carriers (19), BSyn Probands (10), Control
+  Children (19) and Control Parents (38); sample 533 has no variant file. Putative somatic variants have
+  Variant.Allele.Freq < 0.3; samples without any get a count of 0. Quartiles are R's summary() (type 7):
+  BLM carriers 1st Qu. 1.0, 3rd Qu. 3.5, so the IQR is 2.5.
+tasks:
+  - id: bix-39-q2
+    answer_node: a_q2
+    question: Interquartile range of somatic (VAF < 0.3) CHIP variant counts in BLM mutation carriers, non-reference exome variants only.
+    ideal: {type: number, value: 2.5, decimals: 1}
+    label_status: consistent
+nodes:
+  - id: in_variants
+    stage_type: inputs
+    description: Read the per-sample variant tables (one file per sample) and combine them into one table of variant calls.
+    quantities:
+      - {name: n_sample_files, expected: {type: integer, value: 86}, aliases: [n_files, n_samples], context: ["files?", "samples?"]}
+    provenance: {source: printed, ref: "cells 8, 14-15 (86 samples)"}
+  - id: co_groups
+    stage_type: cohort
+    description: Assign each sample to a BLM status group; unaffected samples become control children or control parents by family role.
+    depends_on: [in_variants]
+    hidden: true
+    params: {groups: [BSyn Probands, BLM Carriers, Control Children, Control Parents], excluded: "sample 533 (no variant file)"}
+    quantities:
+      - {name: n_blm_carriers, expected: {type: integer, value: 19}, aliases: [carriers], context: ["carrier"]}
+      - {name: n_bsyn_probands, expected: {type: integer, value: 10}, aliases: [probands, affected], context: ["proband", "BSyn", "affected"]}
+    require: any
+    provenance: {source: printed, ref: "cells 17, 19 (n1/n2 in the pairwise table)"}
+  - id: fl_nonref
+    stage_type: filter
+    description: Remove reference calls (keep variants whose zygosity is not "Reference").
+    depends_on: [in_variants]
+    quantities:
+      - {name: n_nonref_variants, expected: {type: integer, value: 11896}, aliases: [n_nonref, nonref_variants], context: ["non-?ref", "variants?", "remain"]}
+    provenance: {source: printed, ref: "cell 15 (as bix-7)"}
+  - id: fl_exome
+    stage_type: filter
+    description: Drop intronic, intergenic, 3' UTR and 5' UTR variants from the non-reference calls.
+    depends_on: [fl_nonref]
+    quantities:
+      - {name: n_nonref_exome_variants, expected: {type: integer, value: 4550}, aliases: [n_nonref_exome, exonic_variants, n_exome], context: ["exo", "variants?", "remain", "filter"]}
+    provenance: {source: printed, ref: "cell 16 ([1] 4550)"}
+  - id: fl_somatic
+    stage_type: filter
+    description: Keep putative somatic variants, Variant.Allele.Freq < 0.3.
+    depends_on: [fl_exome]
+    params: {vaf_max: 0.3}
+    probe:
+      patterns: ["Allele.?Freq\\w*\\s*<\\s*0?\\.3", "VAF\\s*<\\s*0?\\.3", "< ?0?\\.3"]
+    provenance: {source: printed, ref: "cell 18"}
+  - id: r_counts
+    stage_type: result_table
+    description: Per-sample count of somatic exonic variants (0 for samples without any), summarised by group.
+    depends_on: [fl_somatic, co_groups]
+    quantities:
+      - {name: mean_somatic_blm_carriers, expected: {type: number, value: 2.474, abs_tol: 0.005}, aliases: [mean_carriers], context: ["carrier", "Mean"]}
+      - {name: mean_somatic_bsyn_probands, expected: {type: number, value: 1.90, abs_tol: 0.005}, aliases: [mean_probands], context: ["proband", "BSyn"]}
+      - {name: q3_somatic_blm_carriers, expected: {type: number, value: 3.5, abs_tol: 0.01}, aliases: [q3_carriers], context: ["3rd Qu", "Q3", "75"]}
+    require: any
+    provenance: {source: printed, ref: "cell 19 (tapply summary)"}
+  - id: a_q2
+    stage_type: answer
+    description: IQR of somatic variant counts in BLM carriers (3.5 - 1.0 = 2.5).
+    depends_on: [r_counts]
+    quantities:
+      - {name: iqr_somatic_blm_carriers, expected: {type: number, value: 2.5, decimals: 1}, aliases: [iqr], context: ["IQR", "interquartile"]}
+    provenance: {source: derived, ref: "cell 19 quartiles"}

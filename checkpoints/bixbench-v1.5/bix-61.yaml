@@ -1,0 +1,78 @@
+# BixBench v1.5 bix-61: SNP accumulation in an MDR vs a retail-meat E. coli isolate (WGS variant calling).
+# No capsule notebook exists locally. The MDR SNP count was reproduced from the reads in an earlier project
+# (DASC/0907 per_question/bix-61-q3: Trimmomatic PE, BWA-MEM, samtools sort, GATK 4.6.2 HaplotypeCaller);
+# the retail-meat count comes only from the official answer text.
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-61
+title: SNP counts of an MDR and a retail-meat E. coli isolate against K-12 MG1655
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: dcee15c0-5840-5f48-884f-6ca747506277
+  harness_capsule_uuid: 2e6ab559-e6ef-5d65-8949-f9c23c8bc561
+  archetype: wgs_variants
+  data: ["GCF_000005845.2_ASM584v2_genomic.fna (+ BWA index)", "SRR35233585 (MDR) and SRR35228486 (retail meat): subsampled FASTQ, Trimmomatic paired/unpaired FASTQ, sorted BAM, raw_variants.vcf"]
+notes: >-
+  Only q6 of this capsule is in the 78-question subset. The pipeline in the questions of this capsule: Trimmomatic
+  PE (ILLUMINACLIP TruSeq3-PE 2:30:10, LEADING 3, TRAILING 3, SLIDINGWINDOW 4:15, MINLEN 36), BWA-MEM with read
+  groups, samtools sort/depth, GATK HaplotypeCaller, then counting biallelic single-nucleotide SNPs. For
+  SRR35233585 (MDR) the re-run gives 104,992 records: 101,817 SNPs, 3,065 indels, 110 multiallelic. The harness
+  ships the trimmed reads, sorted BAMs and raw VCFs of both isolates, so the read-processing stages are
+  non-gating and counting SNPs in the VCFs is the first gating checkpoint. The retail-meat count (94,440) is not
+  reproduced here.
+tasks:
+  - id: bix-61-q6
+    answer_node: a_q6
+    question: One sentence on how the MDR strain accumulates mutations compared to the retail meat strain.
+    ideal: {type: label, value: "The MDR strain accumulates mutations at a rate of 101,817 SNPs which is higher than the retail meat strain (94,440 SNPs)."}
+    label_status: consistent
+    notes: Free-text answer; the deterministic probe accepts it only through the label synonyms, so a judge is needed for paraphrases.
+nodes:
+  - id: in_reads
+    stage_type: inputs
+    description: Paired-end reads of both isolates and the E. coli K-12 MG1655 reference (GCF_000005845.2).
+    gating: false
+    probe:
+      patterns: ["SRR35233585", "SRR35228486"]
+    provenance: {source: authored, ref: "harness data listing"}
+  - id: tf_trim_map
+    stage_type: transform
+    description: Trim reads with Trimmomatic PE, map with BWA-MEM (read groups), sort and index the BAM.
+    depends_on: [in_reads]
+    gating: false
+    params: {trimmer: "Trimmomatic PE", aligner: "BWA-MEM", sorter: "samtools sort"}
+    probe:
+      patterns: ["trimmomatic", "bwa\\s+mem", "samtools\\s+sort"]
+    provenance: {source: question, ref: "bix-61-q1/q2 texts"}
+  - id: md_call
+    stage_type: model
+    description: Call variants per isolate with GATK HaplotypeCaller (the harness also ships the resulting raw VCFs).
+    depends_on: [tf_trim_map]
+    gating: false
+    probe:
+      patterns: ["HaplotypeCaller", "raw_variants\\.vcf", "bcftools\\s+call"]
+    provenance: {source: question, ref: "bix-61-q3 text"}
+  - id: r_snp_counts
+    stage_type: result_table
+    description: Count single-nucleotide SNPs (biallelic, REF and ALT one base) per isolate.
+    depends_on: [md_call]
+    quantities:
+      - {name: n_snps_mdr, expected: {type: integer, value: 101817}, aliases: [snps_mdr, n_snps], context: ["SRR35233585", "MDR"]}
+      - {name: n_snps_retail, expected: {type: integer, value: 94440}, aliases: [snps_retail, n_snps], context: ["SRR35228486", "retail", "meat"]}
+    require: any
+    probe:
+      patterns: ["select-?type.{0,10}SNP", "SelectVariants", "len\\(ref\\)\\s*==\\s*1", "bcftools\\s+(view|stats).{0,40}snps"]
+    provenance: {source: rerun, ref: "MDR: DASC/0907 per_question/bix-61-q3/findings.json (snp_count 101817); retail: official answer text", notes: "retail value unverified"}
+  - id: a_q6
+    stage_type: answer
+    description: The MDR isolate has more SNPs (101,817) than the retail-meat isolate (94,440).
+    depends_on: [r_snp_counts]
+    quantities:
+      - name: comparison_sentence
+        expected:
+          type: label
+          value: "The MDR strain accumulates mutations at a rate of 101,817 SNPs which is higher than the retail meat strain (94,440 SNPs)."
+          synonyms:
+            - "The MDR strain has more SNPs (101,817) than the retail meat strain (94,440)."
+            - "The MDR strain accumulates more mutations (101,817 SNPs) than the retail meat strain (94,440 SNPs)."
+    provenance: {source: authored, ref: "official answer key"}

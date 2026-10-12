@@ -79,5 +79,54 @@ What the checkpoints add over accuracy alone:
   non-gating.
 - **Low-confidence fails come from raw-text heuristics.** They are flagged `confidence: low` in the
   evaluation and should be spot-checked.
-- **Pilot only.** Four capsules have graphs (two appear in these runs); the rest of BixBench v1.5 is
-  still to be authored with `builders/bixbench`.
+- **Coverage.** Since 2026-10-12 all 78 questions of the subset have graphs (see below); the rest of
+  BixBench v1.5 is still to be authored with `builders/bixbench`.
+
+## Full 78-question coverage (2026-10-12)
+
+Graphs now exist for all 19 capsules of the subset (21 graphs in `checkpoints/bixbench-v1.5/`, 78 of 78
+questions), so all 278 traces are scored (416 task results).
+
+| condition | units | tasks | final answer given | correct | mean depth fraction |
+|---|---|---|---|---|---|
+| b (capsule units) | 44 | 182 | 61 | 33 | 0.72 |
+| native (single question) | 234 | 234 | 91 | 57 | 0.67 |
+
+Calibration checks:
+- **Every answer node accepts its official ideal** (checked by matching each task's ideal against its
+  answer node).
+- **Correct answers with a failing gating checkpoint: 2 of 90.** Both are native bix-54-q1 runs that fit
+  the 36 ΔrhlI:ΔlasI mixtures only; the reference also keeps the 3 pure ΔrhlI colonies (39). The official
+  range for q1 (0.88-1.0) is wide enough to absorb the different cohort, so the failure is real.
+- **Wrong answers with a located failure: 62 of 62.** 58 are located at the answer node and 4 upstream
+  (2 cohort, 2 filter). Without stage logs, most upstream checkpoints of a wrong run stay `absent`.
+- **Unanswered tasks at full depth: 55.** These runs computed the reference values but stopped before
+  writing a final answer ("Pass (computed, not reported)").
+- **Deterministic:** re-scoring gives identical evaluation files. The bix-10 and bix-28 evaluations are
+  unchanged by the new graphs and the stricter specificity rule.
+
+Probe precision found while calibrating the new graphs:
+- Values given to two significant digits (0.21, 0.12, 2.5) and whole-number percentages (5%, 28%) were
+  matched by unrelated text: IQ-TREE timings (`0.207704 secs`), version strings (`cycler 0.12.1`),
+  `5-taxon`, raw Ct values, percentile headers. `is_low_specificity` now requires a label for numbers
+  whose tolerance is at least 1% of the value and for percentages at whole-percent precision or coarser.
+- Context patterns must be anchored words: `rho` matched `RHOB`, `max` matched `VECLIB_MAXIMUM`, and a
+  bare `%` labels every later number on a line.
+- Values in [0, 1] (R², frequencies) also occur in data previews (bix-54's circularity column), so those
+  quantities carry `specificity: low`.
+- Remaining known weakness: on a line that reports several labelled values ("specific to DG vs
+  baseline: 686 specific to DG vs final: 734"), an earlier label also labels later values. Such passes
+  are `confidence: low`.
+
+Notable reference findings while authoring:
+- **bix-45:** the notebook computes RCV on the untrimmed MAFFT alignments. On the ClipKIT-trimmed
+  alignments that the harness also ships, all four answers miss (p 1.09e-42, fungal median 0.197); the
+  alignment choice is a hidden gating checkpoint with the trimmed route as a variant.
+- **bix-25-q4** (0.21) is not reproduced by any tested reading of "> 70% alignment gaps"; it stays
+  `unverified`. The notebook's cell 37 also mislabels genes by one row (99 animal rows instead of 100).
+- **bix-60:** the official 19 needs a five-tree denominator; the harness ships ten trees (mean x 1000 =
+  10).
+- **bix-52-q1/q3/q5** match the Jackdaw values or the inverted ratio, not the Zebra Finch values the
+  questions name; **bix-22-q6** needs a rank or log-log correlation; **bix-38-q6** is the ratio of
+  medians, not the median of paired ratios. Each has a variant node with the literal reading.
+- Evidence for the phylogenomics capsules: `builders/bixbench/scogs.py` -> `evidence/scogs_L5.json`.

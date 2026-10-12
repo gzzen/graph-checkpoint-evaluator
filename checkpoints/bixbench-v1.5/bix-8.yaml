@@ -1,0 +1,137 @@
+# BixBench v1.5 bix-8: m6A methylation vs differential expression in bladder cancer (MeRIP-seq summary table).
+# Reference: CapsuleNotebook-48a6b469 (R). Counts and the chi-square test are printed (cells 20-25); q1 and q3
+# are ratios of printed counts (derived).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-8
+title: Independence of m6A methylation status and differential expression status
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 48a6b469-9c9d-4bef-b5b4-f29b7d6fa046
+  archetype: tabular_stats
+  data: [MeRIP_RNA_result.xlsx, "Proteomic_data .xlsx"]
+notes: >-
+  MeRIP_RNA_result.xlsx has 12,754 rows, one per transcript (several rows can share a gene). The notebook counts
+  rows, not unique genes, and uses the precomputed labels: m6A (Hyper / Hypo / no sig) and DEG (Up / Down /
+  no-DEGs). The 3 x 3 table m6A x DEG gives Pearson's chi-square 901.45, df 4, p < 2.2e-16. The proteomics file is
+  not used.
+tasks:
+  - id: bix-8-q1
+    answer_node: a_q1
+    question: Percentage of hypermethylated genes that are up-regulated.
+    ideal: {type: percent, value: 15.6, decimals: 1}
+    label_status: consistent
+  - id: bix-8-q2
+    answer_node: a_q2
+    question: Chi-square statistic for independence of m6A status and DE status.
+    ideal: {type: range, min: 900.5, max: 902.5}
+    label_status: consistent
+  - id: bix-8-q3
+    answer_node: a_q3
+    question: Ratio of hypermethylated to hypomethylated genes.
+    ideal: {type: number, value: 1.33, decimals: 2}
+    label_status: consistent
+  - id: bix-8-q5
+    answer_node: a_q5
+    question: p-value of the independence test between m6A status and DE status (scientific notation).
+    ideal: {type: label, value: "p < 2.2e-16"}
+    label_status: consistent
+  - id: bix-8-q6
+    answer_node: a_q6
+    question: Number of significantly hypermethylated genes.
+    ideal: {type: integer, value: 680}
+    label_status: consistent
+  - id: bix-8-q7
+    answer_node: a_q7
+    question: Number of genes both hypermethylated and up-regulated.
+    ideal: {type: integer, value: 106}
+    label_status: consistent
+nodes:
+  - id: in_merip
+    stage_type: inputs
+    description: Load the MeRIP-seq result table with per-transcript methylation and expression statistics and their labels.
+    quantities:
+      - {name: n_rows, expected: {type: integer, value: 12754}, aliases: [rows, n_transcripts], context: ["Rows", "transcripts?", "records?"]}
+    provenance: {source: printed, ref: "cell 10 (Rows: 12,754)"}
+  - id: co_rows
+    stage_type: cohort
+    description: Count each row (transcript) as a unit, using the provided m6A and DEG labels without deduplicating genes.
+    depends_on: [in_merip]
+    hidden: true
+    gating: false
+    params: {unit: "row (transcript)", labels: [m6A, DEG]}
+    provenance: {source: printed, ref: "cells 20-23"}
+  - id: r_counts
+    stage_type: result_table
+    description: Row counts per m6A status (Hyper 680, Hypo 511) and per DEG status (Up 548, Down 415).
+    depends_on: [co_rows]
+    quantities:
+      - {name: n_hyper, expected: {type: integer, value: 680}, aliases: [hyper, m6a_hyper], context: ["Hyper"]}
+      - {name: n_hypo, expected: {type: integer, value: 511}, aliases: [hypo, m6a_hypo], context: ["Hypo"]}
+    require: any
+    provenance: {source: printed, ref: "cells 20-21"}
+  - id: r_contingency
+    stage_type: result_table
+    description: 3 x 3 contingency table of m6A status (Hyper, Hypo, no sig) by DE status (Down, Up, no-DEGs).
+    depends_on: [r_counts]
+    params: {table: {Hyper: {Down: 12, Up: 106, no-DEGs: 562}, Hypo: {Down: 119, Up: 9, no-DEGs: 383}, no_sig: {Down: 284, Up: 433, no-DEGs: 10846}}}
+    quantities:
+      - {name: n_hyper_up, expected: {type: integer, value: 106}, aliases: [hyper_up], context: ["Hyper.{0,10}Up", "Up.{0,10}Hyper"]}
+      - {name: n_nosig_nodeg, expected: {type: integer, value: 10846}, aliases: [nosig_nodeg], context: ["no sig", "no-DEG"]}
+    require: any
+    provenance: {source: printed, ref: "cells 23-24"}
+  - id: a_q6
+    stage_type: answer
+    description: Hypermethylated rows (680).
+    depends_on: [r_counts]
+    quantities:
+      - {name: n_hyper, expected: {type: integer, value: 680}, aliases: [hyper, m6a_hyper], context: ["Hyper"]}
+    provenance: {source: printed, ref: "cell 21"}
+  - id: a_q3
+    stage_type: answer
+    description: Hyper / hypo ratio (680 / 511 = 1.331).
+    depends_on: [r_counts]
+    quantities:
+      - {name: hyper_hypo_ratio, expected: {type: number, value: 1.331, decimals: 2}, context: ["ratio", "Hyper.{0,20}Hypo"]}
+    provenance: {source: derived, ref: "cell 21"}
+  - id: a_q7
+    stage_type: answer
+    description: Rows both hypermethylated and up-regulated (106).
+    depends_on: [r_contingency]
+    quantities:
+      - {name: n_hyper_up, expected: {type: integer, value: 106}, aliases: [hyper_up], context: ["Hyper.{0,10}Up", "Up.{0,10}Hyper"]}
+    provenance: {source: printed, ref: "cell 23"}
+  - id: a_q1
+    stage_type: answer
+    description: Share of hypermethylated rows that are up-regulated (106 / 680 = 15.59%).
+    depends_on: [r_contingency]
+    quantities:
+      - {name: pct_hyper_up, expected: {type: percent, value: 15.59, decimals: 1}, context: ["percent", "pct", "proportion", "Hyper.{0,15}Up"]}
+    provenance: {source: derived, ref: "cells 21, 23"}
+  - id: st_chisq
+    stage_type: model
+    description: Pearson chi-square test of independence on the 3 x 3 table (no continuity correction applies to 3 x 3).
+    depends_on: [r_contingency]
+    params: {dof: 4}
+    probe:
+      patterns: ["chisq\\.test", "chi2_contingency", "chi-?square"]
+    provenance: {source: printed, ref: "cell 25"}
+  - id: a_q2
+    stage_type: answer
+    description: Chi-square statistic (901.45, df 4).
+    depends_on: [st_chisq]
+    quantities:
+      - {name: chi2, expected: {type: range, min: 900.5, max: 902.5}, aliases: [chi_square, X-squared, chi2_statistic], context: ["chi", "X-squared"]}
+    provenance: {source: printed, ref: "cell 25 (X-squared = 901.45)"}
+  - id: a_q5
+    stage_type: answer
+    description: p-value of the chi-square test (below 2.2e-16; about 1e-193 exactly).
+    depends_on: [st_chisq]
+    quantities:
+      - name: chi2_p_value
+        expected:
+          type: any_of
+          options:
+            - {type: label, value: "p < 2.2e-16", synonyms: ["< 2.2e-16", "p-value < 2.2e-16", "<2.2e-16"]}
+            - {type: range, min: 0, max: 2.2e-16}
+    provenance: {source: printed, ref: "cell 25 (p-value < 2.2e-16)"}

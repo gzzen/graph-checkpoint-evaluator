@@ -1,0 +1,120 @@
+# BixBench v1.5 bix-49: ASXL1-mutation (disease) vs control blood RNA-seq, DESeq2 with apeglm shrinkage.
+# Reference: CapsuleNotebook-4ef3fcd8 (R). All answers are printed (cell 26).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-49
+title: Differential expression in ASXL1-mutant vs control blood with apeglm-shrunken fold changes
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 4ef3fcd8-1c35-466f-9d93-49b92f4ea760
+  archetype: rnaseq_de
+  data: [Issy_ASXL1_blood_featureCounts_GeneTable_final.txt, Issy_ASXL1_blood_coldata_gender.xlsx, gencode.v31.primary_assembly.genes.csv, HGNC_05-09-19.txt]
+notes: >-
+  Blood samples only (the fibroblast files are not used). The notebook removes count columns MGD1640B and
+  MGD1641B, fits DESeq2 with design ~sex + condition (control as reference) and shrinks the
+  condition_disease_vs_control coefficient with apeglm. Shrinkage changes log2FoldChange but not padj. DEGs have
+  padj < 0.05: 2,118 genes, 1,166 up and 952 down. Gene names come from the GENCODE v31 table.
+tasks:
+  - id: bix-49-q1
+    answer_node: a_q1
+    question: Maximum log2 fold change (2 decimals) among significant (p < 0.05) up-regulated genes, apeglm shrinkage, disease vs control.
+    ideal: {type: number, value: 4.80, decimals: 2}
+    label_status: consistent
+  - id: bix-49-q2
+    answer_node: a_q2
+    question: Adjusted p-value of GRIK5 (apeglm shrinkage, disease vs control).
+    ideal: {type: number, value: 7.04e-26, sig_figs: 3}
+    label_status: consistent
+  - id: bix-49-q3
+    answer_node: a_q3
+    question: Number of up-regulated genes among significant (padj < 0.05) DEGs.
+    ideal: {type: integer, value: 1166}
+    label_status: consistent
+  - id: bix-49-q4
+    answer_node: a_q4
+    question: Total number of significant (padj < 0.05) DEGs.
+    ideal: {type: integer, value: 2118}
+    label_status: consistent
+  - id: bix-49-q5
+    answer_node: a_q5
+    question: Log2 fold change (2 decimals) of GRIK5 (apeglm shrinkage, disease vs control).
+    ideal: {type: number, value: 3.83, decimals: 2}
+    label_status: consistent
+nodes:
+  - id: in_counts
+    stage_type: inputs
+    description: Load the blood featureCounts gene table, the blood sample sheet (condition, sex) and the GENCODE gene annotation.
+    probe:
+      patterns: ["ASXL1_blood_featureCounts", "blood_coldata"]
+    provenance: {source: printed, ref: "cells 19-21"}
+  - id: co_samples
+    stage_type: cohort
+    description: Remove the count columns MGD1640B and MGD1641B so the counts match the sample sheet; relabel ASXL1 as disease and Control as control.
+    depends_on: [in_counts]
+    hidden: true
+    probe:
+      patterns: ["MGD1640B", "MGD1641B"]
+    provenance: {source: printed, ref: "cell 20"}
+  - id: md_deseq
+    stage_type: model
+    description: Fit DESeq2 with design ~sex + condition (control as reference).
+    depends_on: [co_samples]
+    hidden: true
+    params: {design: "~ sex + condition", reference: control}
+    probe:
+      patterns: ["~\\s*sex\\s*\\+\\s*condition", "design_factors\\s*=\\s*\\[\\s*['\"]sex", "sex.{0,20}condition"]
+    provenance: {source: printed, ref: "cell 24"}
+  - id: tf_apeglm
+    stage_type: transform
+    description: Shrink the disease vs control log2 fold changes with apeglm.
+    depends_on: [md_deseq]
+    params: {coef: condition_disease_vs_control, type: apeglm}
+    probe:
+      patterns: ["apeglm", "lfcShrink", "lfc_shrink"]
+    provenance: {source: printed, ref: "cell 24"}
+  - id: r_degs
+    stage_type: result_table
+    description: Genes with padj < 0.05, ordered by absolute shrunken log2 fold change.
+    depends_on: [tf_apeglm]
+    params: {padj: 0.05}
+    quantities:
+      - {name: n_degs, expected: {type: integer, value: 2118}, aliases: [n_sig, n_significant], context: ["DEGs?", "significant", "padj"]}
+      - {name: n_up, expected: {type: integer, value: 1166}, aliases: [n_upregulated], context: ["up-?reg", "positive", "LFC ?> ?0"]}
+      - {name: n_down, expected: {type: integer, value: 952}, aliases: [n_downregulated], context: ["down-?reg", "negative", "LFC ?< ?0"]}
+    require: any
+    provenance: {source: printed, ref: "cell 26 (2118, 952 down, 1166 up)"}
+  - id: a_q4
+    stage_type: answer
+    description: Total DEGs (2118).
+    depends_on: [r_degs]
+    quantities:
+      - {name: n_degs, expected: {type: integer, value: 2118}, aliases: [n_sig, n_significant], context: ["DEGs?", "significant", "padj"]}
+    provenance: {source: printed, ref: "cell 26"}
+  - id: a_q3
+    stage_type: answer
+    description: Up-regulated DEGs (1166).
+    depends_on: [r_degs]
+    quantities:
+      - {name: n_up, expected: {type: integer, value: 1166}, aliases: [n_upregulated], context: ["up-?reg", "positive", "LFC ?> ?0"]}
+    provenance: {source: printed, ref: "cell 26"}
+  - id: a_q1
+    stage_type: answer
+    description: Largest shrunken log2 fold change among up-regulated DEGs (SLC7A3, 4.80278).
+    depends_on: [r_degs]
+    quantities:
+      - {name: max_lfc_up, expected: {type: number, value: 4.80278, decimals: 2}, aliases: [log2FoldChange], context: ["SLC7A3", "\\bmax(imum)?\\b", "log2"]}
+    provenance: {source: printed, ref: "cell 26 (SLC7A3 4.80278)"}
+  - id: a_q5
+    stage_type: answer
+    description: Shrunken log2 fold change of GRIK5 (3.825466).
+    depends_on: [tf_apeglm]
+    quantities:
+      - {name: lfc_grik5, expected: {type: number, value: 3.825466, decimals: 2}, aliases: [log2FoldChange], context: ["GRIK5"]}
+    provenance: {source: printed, ref: "cell 26"}
+  - id: a_q2
+    stage_type: answer
+    description: Adjusted p-value of GRIK5 (7.039991e-26).
+    depends_on: [md_deseq]
+    quantities:
+      - {name: padj_grik5, expected: {type: number, value: 7.039991e-26, sig_figs: 3}, aliases: [padj], context: ["GRIK5"]}
+    provenance: {source: printed, ref: "cell 26"}

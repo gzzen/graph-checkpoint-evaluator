@@ -63,6 +63,17 @@ question. Only `compare()` looks at the official key, and it records how each va
 PYTHONPATH=src:. ../envs.nosync/pyenv/bin/python -m builders.bixbench.derive   # -> evidence/derived_78_L1_L3.json
 ```
 
+## Harness-only data (phylogenomics capsules)
+
+bix-25, bix-28, bix-38, bix-45 and bix-60 are scored against harness data that the local capsule folders
+lack: `scogs_animals.zip` and `scogs_fungi.zip` hold the per-BUSCO FASTA, MAFFT and ClipKIT alignments and
+IQ-TREE trees. `scogs.py` runs PhyKIT on them (run it with the re-run environment's Python, which has
+PhyKIT):
+
+```bash
+PYTHONPATH=src:. ../envs.nosync/pyenv/bin/python -m builders.bixbench.scogs --zips <dir with the two zips>   # -> evidence/scogs_L5.json
+```
+
 ## Environments
 
 `envs/setup.sh <dir>` creates a Python 3.11 venv pinned close to the notebooks' Colab versions, and an
