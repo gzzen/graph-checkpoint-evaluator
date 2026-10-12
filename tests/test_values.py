@@ -114,3 +114,7 @@ def test_low_specificity():
     assert not is_low_specificity({"type": "range", "min": 157500, "max": 158000})
     assert not is_low_specificity({"type": "integer", "value": 4550})
     assert not is_low_specificity({"type": "number", "value": 0.0002045, "sig_figs": 4})
+    assert is_low_specificity({"type": "number", "value": 0.21, "decimals": 2})  # "0.207704 secs" is not a result
+    assert is_low_specificity({"type": "percent", "value": 5.0, "decimals": 0})  # "5-taxon"
+    assert not is_low_specificity({"type": "percent", "value": 15.6, "decimals": 1})
+    assert not is_low_specificity({"type": "number", "value": 1.5242, "abs_tol": 0.005})
