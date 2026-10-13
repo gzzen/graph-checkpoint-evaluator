@@ -1,0 +1,114 @@
+# BixBench v1.5 bix-24: CBD vs DMSO in colorectal cancer cells, DEGs and GO enrichment (PyDESeq2 + gseapy Enrichr).
+# Reference: CapsuleNotebook-b1b0ef00 (Python). DEG table and enrichment tables are printed (cells 47, 56, 59, 62).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-24
+title: GO Biological Process enrichment of CBD-responsive genes in CRC cells
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: b1b0ef00-cb15-4375-9aac-e1e53a7250c5
+  archetype: rnaseq_de
+  data: [counts_raw_unfiltered.csv, sample_layout.csv]
+notes: >-
+  Raw counts (Ensembl IDs x 30 samples, 10 groups x 3 replicates). Genes are kept when at least one sample has
+  more than 10 counts. The CBD model is fit on the samples whose IDs contain 7_, 8_, 3_ or 4_ only (design
+  ~Group); cbd_vs_dmso is the contrast CBD_IC50 vs DMSO. DEGs: padj < 0.05, |log2FC| >= 0.5, baseMean >= 10
+  (233 genes). Ensembl IDs are mapped to symbols through the Ensembl REST API (7 IDs fail). Enrichr (gseapy) is
+  run on all DEG symbols, on up-regulated (log2FC >= 0.5) and on the rest ("down", log2FC < 0.5) against
+  GO_Biological_Process_2021 and Reactome_2022, ranked by adjusted p. Top terms: all DEGs "cellular response to
+  decreased oxygen levels"; down "canonical glycolysis"; up "blood vessel morphogenesis". Enrichr results depend
+  on the live library version.
+tasks:
+  - id: bix-24-q1
+    answer_node: a_q1
+    question: Metabolic pathway most enriched among down-regulated DEGs (CBD vs DMSO), gseapy with GO_Biological_Process_2021.
+    ideal: {type: label, value: "Canonical glycolysis"}
+    label_status: consistent
+  - id: bix-24-q2
+    answer_node: a_q2
+    question: Whether up- or down-regulation drives the metabolic effects of CBD (padj < 0.05, |log2FC| > 0.5, GO BP enrichment).
+    ideal: {type: label, value: "Downregulation"}
+    label_status: consistent
+  - id: bix-24-q6
+    answer_node: a_q6
+    question: Biological process most enriched among all significant DEGs (CBD vs DMSO), gseapy with GO_Biological_Process_2021.
+    ideal: {type: label, value: "Cellular response to decreased oxygen levels"}
+    label_status: consistent
+nodes:
+  - id: in_counts
+    stage_type: inputs
+    description: Load the raw count matrix (Ensembl gene IDs x samples) and the sample layout (group per sample).
+    probe:
+      patterns: ["counts_raw_unfiltered", "sample_layout"]
+    provenance: {source: printed, ref: "cells 14-15 (30 samples)"}
+  - id: co_subset
+    stage_type: cohort
+    description: Fit the CBD model on the 12 samples of groups 3, 4, 7 and 8 only (CBD, DMSO and their serum-starved counterparts), not on all 30.
+    depends_on: [in_counts]
+    hidden: true
+    gating: false
+    quantities:
+      - {name: n_samples_model, expected: {type: integer, value: 12}, aliases: [n_samples, samples], context: ["samples?"]}
+    provenance: {source: printed, ref: "cells 27, 30 (treatment_groups '7_|8_|3_|4_')"}
+  - id: fl_expressed
+    stage_type: filter
+    description: Keep genes with more than 10 counts in at least one sample.
+    depends_on: [co_subset]
+    hidden: true
+    gating: false
+    probe:
+      patterns: ["> ?10\\)\\.sum\\(axis\\s*=\\s*1\\)", "rowSums\\(.*>\\s*10", "min_count", ">= ?10"]
+    provenance: {source: printed, ref: "cell 28"}
+  - id: md_deseq
+    stage_type: model
+    description: Fit DESeq2 with design ~Group and test CBD_IC50 vs DMSO (DMSO as reference).
+    depends_on: [fl_expressed]
+    params: {design: "~ Group", contrast: [Group, CBD_IC50, DMSO], samples: "groups 3, 4, 7, 8 only"}
+    probe:
+      patterns: ["DeseqDataSet", "DESeqDataSetFrom", "DESeq\\(", "CBD_IC50.{0,30}DMSO"]
+    provenance: {source: printed, ref: "cells 26-30"}
+  - id: r_degs
+    stage_type: result_table
+    description: DEGs for CBD vs DMSO at padj < 0.05, |log2FC| >= 0.5 and baseMean >= 10.
+    depends_on: [md_deseq]
+    params: {padj: 0.05, abs_log2fc: 0.5, base_mean_min: 10}
+    quantities:
+      - {name: n_degs_cbd_vs_dmso, expected: {type: integer, value: 233, tol: 25}, aliases: [n_degs, n_sig], context: ["DEGs?", "significant", "genes"]}
+    provenance: {source: printed, ref: "cell 47 (rows 0-232)"}
+  - id: tf_symbols
+    stage_type: transform
+    description: Map DEG Ensembl IDs to gene symbols and split them into up-regulated and down-regulated lists.
+    depends_on: [r_degs]
+    gating: false
+    probe:
+      patterns: ["rest\\.ensembl", "mygene", "mapIds", "biomart", "gene_name", "symbol"]
+    provenance: {source: printed, ref: "cells 44-50, 53"}
+  - id: md_enrich
+    stage_type: model
+    description: Over-representation analysis (Enrichr) of the all / up / down DEG symbol lists against GO_Biological_Process_2021, ranked by adjusted p.
+    depends_on: [tf_symbols]
+    params: {tool: "gseapy.enrichr", gene_sets: [GO_Biological_Process_2021, Reactome_2022]}
+    probe:
+      patterns: ["enrichr", "GO_Biological_Process_2021", "enrichGO", "gp\\.enrich"]
+    provenance: {source: printed, ref: "cells 52-62"}
+  - id: a_q6
+    stage_type: answer
+    description: Top GO BP term for all DEGs.
+    depends_on: [md_enrich]
+    quantities:
+      - {name: top_term_all, expected: {type: label, value: "Cellular response to decreased oxygen levels", synonyms: ["cellular response to decreased oxygen levels (GO:0036294)", "GO:0036294"]}}
+    provenance: {source: printed, ref: "cell 56 (row 0)"}
+  - id: a_q1
+    stage_type: answer
+    description: Top GO BP term for the down-regulated DEGs.
+    depends_on: [md_enrich]
+    quantities:
+      - {name: top_term_down, expected: {type: label, value: "Canonical glycolysis", synonyms: ["canonical glycolysis (GO:0061621)", "GO:0061621"]}}
+    provenance: {source: printed, ref: "cell 62 (row 0)"}
+  - id: a_q2
+    stage_type: answer
+    description: Direction driving the metabolic enrichment (the glycolysis terms come from the down-regulated list).
+    depends_on: [md_enrich]
+    quantities:
+      - {name: driving_direction, expected: {type: label, value: "Downregulation", synonyms: ["down-regulation", "downregulated genes", "down-regulated", "down"]}}
+    provenance: {source: printed, ref: "markdown cells 63, 67"}

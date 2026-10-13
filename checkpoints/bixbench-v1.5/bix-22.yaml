@@ -1,0 +1,139 @@
+# BixBench v1.5 bix-22: gene length vs expression of protein-coding genes across immune cell types.
+# Reference: CapsuleNotebook-34a4ea96 (Python). Per-cell-type correlations are printed (cell 34); q6 (pooled) is
+# not computed in the notebook and was re-computed (evidence derived_78_L1_L3.json).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-22
+title: Pearson correlation of gene length with mean expression per immune cell type
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 34a4ea96-c800-4c11-959e-57cdc4932c52
+  archetype: tabular_stats
+  data: [BatchCorrectedReadCounts_Zenodo.csv, GeneMetaInfo_Zenodo.csv, Sample_annotated_Zenodo.csv]
+notes: >-
+  Batch-corrected counts (59,453 genes x 723 samples). The notebook drops PBMC samples, keeps genes whose
+  gene_biotype contains "protein_coding", drops genes with a total count below 10 over the immune samples
+  (17,819 genes remain), splits samples by cell type (CD4, CD8, CD14, CD19), averages expression over samples
+  per gene, and takes Pearson's r between gene length and that mean on raw (untransformed) values:
+  CD4 0.0499, CD8 0.0437, CD14 0.0205, CD19 0.0357. q6 asks for one coefficient over protein-coding genes; the
+  raw pooled Pearson is 0.0387, while the official 0.3-0.4 matches a Spearman correlation (0.342) or Pearson on
+  log10 length vs log10(mean + 1) (0.332).
+tasks:
+  - id: bix-22-q1
+    answer_node: a_q1
+    question: Immune cell type with the weakest (lowest absolute) Pearson correlation between gene length and mean expression.
+    ideal: {type: label, value: "CD14"}
+    label_status: consistent
+  - id: bix-22-q2
+    answer_node: a_q2
+    question: Pearson correlation between gene length and mean expression for protein-coding genes in CD4 cells.
+    ideal: {type: range, min: 0.045, max: 0.055}
+    label_status: consistent
+  - id: bix-22-q3
+    answer_node: a_q3
+    question: Pearson correlation between gene length and gene expression in CD8 cells.
+    ideal: {type: range, min: 0.03, max: 0.05}
+    label_status: consistent
+  - id: bix-22-q4
+    answer_node: a_q4
+    question: Pearson correlation between gene length and mean expression for protein-coding genes in CD14 cells.
+    ideal: {type: range, min: 0.015, max: 0.025}
+    label_status: consistent
+  - id: bix-22-q6
+    answer_node: a_q6
+    question: Pearson correlation between gene length and gene expression for protein-coding genes.
+    ideal: {type: range, min: 0.3, max: 0.4}
+    label_status: mismatch
+    notes: The notebook's raw Pearson on pooled immune samples is 0.0387 (variant a_q6_raw); the ideal needs a rank or log-log correlation.
+nodes:
+  - id: in_tables
+    stage_type: inputs
+    description: Load batch-corrected counts, sample annotation (cell type per sample) and gene annotation (length, biotype).
+    quantities:
+      - {name: n_genes_annot, expected: {type: integer, value: 59453}, aliases: [n_genes, genes], context: ["rows", "genes?"]}
+      - {name: n_samples, expected: {type: integer, value: 723}, aliases: [samples], context: ["rows", "samples?"]}
+    require: any
+    provenance: {source: printed, ref: "cells 14, 16 ([723 rows x 5 columns], [59453 rows x 4 columns])"}
+  - id: co_immune
+    stage_type: cohort
+    description: Exclude PBMC samples, keeping the four sorted immune cell types (CD4, CD8, CD14, CD19).
+    depends_on: [in_tables]
+    hidden: true
+    probe:
+      patterns: ["PBMC"]
+    provenance: {source: printed, ref: "cells 7, 19"}
+  - id: fl_protein_coding
+    stage_type: filter
+    description: Keep protein-coding genes with a total count of at least 10 over the immune samples (17,819 genes).
+    depends_on: [co_immune]
+    params: {biotype: protein_coding, min_total_count: 10}
+    quantities:
+      - {name: n_protein_coding_genes, expected: {type: integer, value: 17819, tol: 300}, aliases: [n_genes_kept, n_genes], context: ["protein.coding", "genes?"]}
+    probe:
+      patterns: ["protein_coding"]
+    provenance: {source: derived, ref: "cells 20-21; derived_78_L1_L3.json notes"}
+  - id: tf_mean_expr
+    stage_type: transform
+    description: For each cell type, average each gene's expression over that cell type's samples (raw scale) and attach gene length.
+    depends_on: [fl_protein_coding]
+    params: {aggregation: mean over samples, scale: raw}
+    probe:
+      patterns: ["\\.mean\\(axis\\s*=\\s*1\\)", "rowMeans", "groupby\\(.*celltype", "mean\\(axis=1"]
+    provenance: {source: printed, ref: "cells 27-30"}
+  - id: r_corr
+    stage_type: result_table
+    description: Pearson correlation of gene length with mean expression per cell type.
+    depends_on: [tf_mean_expr]
+    quantities:
+      - {name: r_cd4, expected: {type: number, value: 0.049889, abs_tol: 0.001}, aliases: [pearson_cd4], context: ["CD4"]}
+      - {name: r_cd8, expected: {type: number, value: 0.043670, abs_tol: 0.001}, aliases: [pearson_cd8], context: ["CD8"]}
+      - {name: r_cd14, expected: {type: number, value: 0.020527, abs_tol: 0.001}, aliases: [pearson_cd14], context: ["CD14"]}
+      - {name: r_cd19, expected: {type: number, value: 0.035662, abs_tol: 0.001}, aliases: [pearson_cd19], context: ["CD19"]}
+    require: any
+    probe:
+      patterns: ["pearsonr", "cor\\.test", "corr\\(", "pearson"]
+    provenance: {source: printed, ref: "cell 34"}
+  - id: a_q1
+    stage_type: answer
+    description: Cell type with the weakest correlation (CD14, r = 0.0205).
+    depends_on: [r_corr]
+    quantities:
+      - {name: weakest_cell_type, expected: {type: label, value: "CD14", synonyms: ["CD14 monocytes", "CD14+"]}}
+    provenance: {source: printed, ref: "cell 34"}
+  - id: a_q2
+    stage_type: answer
+    description: Pearson r, CD4.
+    depends_on: [r_corr]
+    quantities:
+      - {name: r_cd4, expected: {type: range, min: 0.045, max: 0.055}, aliases: [pearson_cd4], context: ["CD4"]}
+    provenance: {source: printed, ref: "cell 34 (0.049889)"}
+  - id: a_q3
+    stage_type: answer
+    description: Pearson r, CD8.
+    depends_on: [r_corr]
+    quantities:
+      - {name: r_cd8, expected: {type: range, min: 0.03, max: 0.05}, aliases: [pearson_cd8], context: ["CD8"]}
+    provenance: {source: printed, ref: "cell 34 (0.043670)"}
+  - id: a_q4
+    stage_type: answer
+    description: Pearson r, CD14.
+    depends_on: [r_corr]
+    quantities:
+      - {name: r_cd14, expected: {type: range, min: 0.015, max: 0.025}, aliases: [pearson_cd14], context: ["CD14"]}
+    provenance: {source: printed, ref: "cell 34 (0.020527)"}
+  - id: a_q6
+    stage_type: answer
+    description: One correlation over all immune samples' protein-coding genes that falls in the official 0.3-0.4 (Spearman 0.342 or log-log Pearson 0.332).
+    depends_on: [tf_mean_expr]
+    quantities:
+      - {name: r_pooled, expected: {type: range, min: 0.3, max: 0.4}, aliases: [pearson_pooled, correlation], context: ["correlation", "pooled", "overall", "Pearson", "Spearman"]}
+    provenance: {source: derived, ref: "derived_78_L1_L3.json bix-22-q6 variants"}
+  - id: a_q6_raw
+    stage_type: answer
+    description: The notebook's method applied to all immune samples pooled, raw Pearson (0.0387).
+    depends_on: [tf_mean_expr]
+    variant_of: a_q6
+    gating: false
+    quantities:
+      - {name: r_pooled_raw, expected: {type: number, value: 0.0387, abs_tol: 0.001}, aliases: [pearson_pooled], context: ["correlation", "pooled", "overall", "Pearson"]}
+    provenance: {source: derived, ref: "derived_78_L1_L3.json bix-22-q6"}

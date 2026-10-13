@@ -1,0 +1,156 @@
+# BixBench v1.5 bix-3: paroxetine RNA-seq in control mice, blood vs dentate gyrus (PyDESeq2).
+# Reference: CapsuleNotebook-94bcdbc9 (Python). All answers are printed in the notebook (cell refs).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-3
+title: DEGs between blood and dentate gyrus in control mice, overlaps and a binomial test for negligible effects
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 94bcdbc9-c729-4661-9bc1-0057bbea39c4
+  archetype: rnaseq_de
+  data: [Data_deposition_RNAseq_Paroxetine_2017.xlsx]
+notes: >-
+  The workbook ships normalised counts only (NormCount tab, 25,402 genes, 90 samples). The notebook keeps the 30
+  Control samples (10 per tissue), drops genes with a total count below 10, and turns the floats into integers by
+  scaling every gene to a total of 1e6 (`x * 1e6 / x.sum()` over samples) and rounding; this is why every
+  baseMean is about 1e4. PyDESeq2 then fits ~Tissue and tests three contrasts. A DEG has padj < 0.05,
+  |log2FC| > 1 and baseMean >= 10. Proportions use all 25,402 genes as the denominator.
+  DEG counts depend on the pseudo-count scaling, so intermediate counts carry a 5% tolerance.
+tasks:
+  - id: bix-3-q1
+    answer_node: a_q1
+    question: DEGs (FDR < 0.05, |log2FC| > 1, baseMean >= 10) for final vs baseline blood in Control mice, DESeq2 design ~Tissue.
+    ideal: {type: range, min: 700, max: 1000}
+    label_status: consistent
+  - id: bix-3-q2
+    answer_node: a_q2
+    question: Wilson 95% confidence interval for the proportion of DEGs, final vs baseline blood.
+    ideal: {type: range, min: 0.03, max: 0.04}
+    label_status: consistent
+  - id: bix-3-q3
+    answer_node: a_q3
+    question: DEGs specific to dentate gyrus vs baseline blood (padj < 0.05, |log2FC| > 1), Control samples only.
+    ideal: {type: range, min: 700, max: 800}
+    label_status: consistent
+  - id: bix-3-q4
+    answer_node: a_q4
+    question: DEGs shared by all three comparisons (final vs baseline blood, dentate gyrus vs baseline blood, dentate gyrus vs final blood).
+    ideal: {type: range, min: 400, max: 500}
+    label_status: consistent
+  - id: bix-3-q5
+    answer_node: a_q5
+    question: Comparison with negligible effects by a binomial exact test against a 5% threshold.
+    ideal: {type: label, value: "Final vs Baseline Blood"}
+    label_status: consistent
+nodes:
+  - id: in_counts
+    stage_type: inputs
+    description: Load the normalised count table (NormCount tab) and the sample annotation (Mapping_statistics tab).
+    quantities:
+      - {name: n_genes, expected: {type: integer, value: 25402}, aliases: [total_genes, genes, n_rows], context: ["genes?", "rows"]}
+    provenance: {source: printed, ref: "cells 20, 51 (25402 genes)"}
+  - id: co_control
+    stage_type: cohort
+    description: Keep the Control mice only (10 baseline blood, 10 final blood, 10 dentate gyrus samples).
+    depends_on: [in_counts]
+    quantities:
+      - {name: n_control_samples, expected: {type: integer, value: 30}, aliases: [n_samples, control_samples], context: ["Control", "samples?"]}
+    probe:
+      patterns: ["contains\\(\\s*['\"]Control", "==\\s*['\"]Control['\"]", "grepl?\\(\\s*['\"]Control", "startswith\\(\\s*['\"]Control"]
+    provenance: {source: printed, ref: "cells 25, 33"}
+  - id: tf_pseudocounts
+    stage_type: transform
+    description: Drop genes with total count below 10 and convert the normalised floats into integer pseudo-counts (scale and round).
+    depends_on: [co_control]
+    hidden: true
+    gating: false
+    params: {gene_filter: "sum over all samples >= 10", scaling: "each gene scaled to a total of 1e6, rounded to int"}
+    probe:
+      patterns: ["round\\(\\)\\.astype\\(\\s*int", "astype\\(\\s*int", "round\\(.*counts", "as\\.integer\\(", "storage\\.mode.*integer"]
+    provenance: {source: printed, ref: "cells 27, 29"}
+  - id: md_deseq
+    stage_type: model
+    description: Fit DESeq2 with design ~Tissue on the Control samples and test final blood vs baseline blood, dentate gyrus vs baseline blood and dentate gyrus vs final blood.
+    depends_on: [tf_pseudocounts]
+    params: {design: "~ Tissue", contrasts: ["final_blood vs baseline_blood", "dentate_gyrus vs baseline_blood", "dentate_gyrus vs final_blood"]}
+    probe:
+      patterns: ["DeseqDataSet", "DESeqDataSetFrom", "DESeq\\(", "design_factors\\s*=\\s*\\[?\\s*['\"]Tissue", "~\\s*Tissue"]
+    provenance: {source: printed, ref: "cells 33-36"}
+  - id: r_degs
+    stage_type: result_table
+    description: DEG counts per comparison at padj < 0.05, |log2FC| > 1 and baseMean >= 10.
+    depends_on: [md_deseq]
+    params: {padj: 0.05, abs_log2fc: 1, base_mean_min: 10}
+    quantities:
+      - {name: n_degs_final_vs_baseline_blood, expected: {type: integer, value: 846, tol: 42}, aliases: [degs_final_vs_baseline], context: ["final.{0,6}blood.{0,10}baseline", "Final vs\\.? Baseline"]}
+      - {name: n_degs_dg_vs_baseline_blood, expected: {type: integer, value: 11663, tol: 580}, aliases: [degs_dg_vs_baseline], context: ["dentate.{0,10}baseline", "Brain vs\\.? Baseline"]}
+      - {name: n_degs_dg_vs_final_blood, expected: {type: integer, value: 11746, tol: 580}, aliases: [degs_dg_vs_final], context: ["dentate.{0,10}final", "Brain vs\\.? Final"]}
+    require: any
+    provenance: {source: printed, ref: "cell 41 (846 / 11663 / 11746)"}
+  - id: r_overlap
+    stage_type: downstream
+    description: Overlap of the three DEG sets (Venn regions).
+    depends_on: [r_degs]
+    params: {regions: {all_three: 429, dg_vs_baseline_only: 766, dg_vs_final_only: 773, shared_brain_vs_blood: 10316}}
+    quantities:
+      - {name: n_shared_brain_vs_blood, expected: {type: integer, value: 10316, tol: 520}, aliases: [shared_brain_vs_blood], context: ["shared", "brain", "dentate"]}
+      - {name: n_dg_vs_final_only, expected: {type: integer, value: 773, tol: 40}, aliases: [dg_vs_final_specific], context: ["specific", "unique", "only"]}
+    require: any
+    provenance: {source: printed, ref: "markdown cell 65 (Venn diagram, cell 49)"}
+  - id: a_q1
+    stage_type: answer
+    description: DEGs for final vs baseline blood.
+    depends_on: [r_degs]
+    quantities:
+      - {name: n_degs_final_vs_baseline_blood, expected: {type: range, min: 700, max: 1000}, context: ["final.{0,6}blood.{0,10}baseline", "Final vs\\.? Baseline"]}
+    provenance: {source: printed, ref: "cell 41 (846)"}
+  - id: r_ci
+    stage_type: model
+    description: Wilson 95% confidence interval for the proportion of DEGs (final vs baseline blood) among all 25,402 genes.
+    depends_on: [r_degs]
+    params: {k: 846, n: 25402, method: wilson}
+    quantities:
+      - {name: ci_low_final_vs_baseline, expected: {type: number, value: 0.0312, abs_tol: 0.0015}, aliases: [ci_low, lower], context: ["CI", "confidence", "wilson"]}
+      - {name: ci_high_final_vs_baseline, expected: {type: number, value: 0.0356, abs_tol: 0.0015}, aliases: [ci_high, upper], context: ["CI", "confidence", "wilson"]}
+    require: any
+    probe:
+      patterns: ["proportion_confint", "wilson", "binom\\.confint", "prop\\.test"]
+    provenance: {source: printed, ref: "cell 61 ((0.0312, 0.0356))"}
+  - id: a_q2
+    stage_type: answer
+    description: Wilson 95% CI for the DEG proportion, final vs baseline blood.
+    depends_on: [r_ci]
+    quantities:
+      - {name: ci_final_vs_baseline, expected: {type: range, min: 0.03, max: 0.04}, context: ["CI", "confidence", "wilson"]}
+    provenance: {source: printed, ref: "cell 61"}
+  - id: a_q3
+    stage_type: answer
+    description: DEGs found only in dentate gyrus vs baseline blood (not in the other two comparisons).
+    depends_on: [r_overlap]
+    quantities:
+      - {name: n_dg_vs_baseline_only, expected: {type: range, min: 700, max: 800}, aliases: [dg_vs_baseline_specific], context: ["specific", "unique", "only"]}
+    provenance: {source: printed, ref: "markdown cell 65, cell 66 (k = 766)"}
+  - id: a_q4
+    stage_type: answer
+    description: DEGs shared by all three comparisons.
+    depends_on: [r_overlap]
+    quantities:
+      - {name: n_shared_all_three, expected: {type: range, min: 400, max: 500}, aliases: [common_all, shared_all], context: ["all (three|3)", "common", "shared"]}
+    provenance: {source: printed, ref: "markdown cell 50 (429)"}
+  - id: st_binom
+    stage_type: model
+    description: One-sided binomial exact test of each comparison's DEG count against 5% of all genes (H1 proportion < 0.05).
+    depends_on: [r_degs]
+    params: {n: 25402, p0: 0.05, alternative: less}
+    quantities:
+      - {name: binom_p_final_vs_baseline, expected: {type: number, value: 1.2662e-38, sig_figs: 3}, aliases: [p_value, pvalue], context: ["Final.{0,10}Baseline", "binom"]}
+    probe:
+      patterns: ["binomtest", "binom_test", "binom\\.test"]
+    provenance: {source: printed, ref: "cells 56-58 (p 1.27e-38; 1.0; 1.0)"}
+  - id: a_q5
+    stage_type: answer
+    description: The comparison whose DEG proportion is significantly below 5%.
+    depends_on: [st_binom]
+    quantities:
+      - {name: negligible_comparison, expected: {type: label, value: "Final vs Baseline Blood", synonyms: ["final blood vs baseline blood", "final_blood_vs_baseline_blood", "Final vs Baseline"]}}
+    provenance: {source: printed, ref: "markdown cells 59, 74"}

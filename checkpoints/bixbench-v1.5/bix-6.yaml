@@ -1,0 +1,152 @@
+# BixBench v1.5 bix-6: CRISPRa screen for resistance to T-cell cytotoxicity, replicate agreement and Reactome ORA.
+# Reference: CapsuleNotebook-f4dcda89 (Python). Values are printed (cells 26, 27, 30) except q5 (derived) and
+# q6 (cell 19 has no saved output; re-computed, evidence derived_78_L1_L3.json).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-6
+title: Replicate correlation and pathway over-representation in acute and chronic CRISPRa T-cell screens
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: f4dcda89-678d-403d-b155-1483d0071765
+  archetype: tabular_stats
+  data: [JuliaJong_CRISPRa_BCL2_B3GNT_cacerResTcellCytotoxicity_supplData1_mageck.xlsx, ReactomePathways.gmt]
+notes: >-
+  Input is the "MAGeCK P-values" sheet (23,726 RefSeq IDs; columns per condition and replicate S1/S2). Replicate
+  agreement uses Spearman when an Anderson-Darling test rejects normality (always here). For ORA, each condition's
+  gene list is the RefSeq IDs whose minimum p-value over the two replicates is < 0.05, mapped to symbols with
+  mygene; the background is all mapped IDs; gseapy.enrich runs against ReactomePathways.gmt and a pathway is
+  significant at adjusted p < 0.05. Only chronic round 2 has significant pathways ("Nitric oxide stimulates
+  guanylate cyclase", adj p 0.0327, p 3.3e-05; "cGMP effects", adj p 0.0327, p 2.4e-05). The notebook passes the
+  GMT twice, so each term appears twice in the results.
+tasks:
+  - id: bix-6-q1
+    answer_node: a_q1
+    question: Condition with the strongest pathway enrichment using the minimum p-value across replicates in ORA.
+    ideal: {type: label, value: "chronic round 2"}
+    label_status: consistent
+  - id: bix-6-q3
+    answer_node: a_q3
+    question: Pathways significant (adjusted p < 0.05) in all three chronic rounds.
+    ideal: {type: integer, value: 0}
+    label_status: consistent
+  - id: bix-6-q4
+    answer_node: a_q4
+    question: Spearman correlation between replicates in chronic round 1.
+    ideal: {type: range, min: 0.001, max: 0.09}
+    label_status: consistent
+  - id: bix-6-q5
+    answer_node: a_q5
+    question: Percentage of screening conditions (excluding no-T-cell controls) with significant immune-relevant pathway enrichment.
+    ideal: {type: percent, value: 25.0, decimals: 0}
+    label_status: consistent
+    notes: 1 of 4 conditions (acute, chronic rounds 1-3); counting the NO/cGMP pathways as immune-relevant is the key's judgement.
+  - id: bix-6-q6
+    answer_node: a_q6
+    question: Spearman correlation between replicates S1 and S2 of the acute T-cell screen MAGeCK p-values.
+    ideal: {type: range, min: 0.0, max: 0.09}
+    label_status: consistent
+  - id: bix-6-q7
+    answer_node: a_q7
+    question: Most significantly enriched pathway in chronic round 2.
+    ideal: {type: label, value: "cGMP effects"}
+    label_status: consistent
+nodes:
+  - id: in_mageck
+    stage_type: inputs
+    description: Load the MAGeCK p-value sheet (one row per RefSeq ID, columns per condition and replicate).
+    quantities:
+      - {name: n_genes, expected: {type: integer, value: 23726}, aliases: [n_rows, rows, refseq_ids], context: ["rows", "genes?", "RefSeq"]}
+    provenance: {source: derived, ref: "MAGeCK P-values sheet (derived_78_L1_L3.json bix-6-q6 n_genes)"}
+  - id: st_replicate_corr
+    stage_type: model
+    description: Spearman rank correlation of S1 vs S2 p-values within a condition (normality rejected by Anderson-Darling).
+    depends_on: [in_mageck]
+    probe:
+      patterns: ["spearmanr", "method\\s*=\\s*['\"]spearman", "cor\\.test\\(.*spearman", "spearman"]
+    provenance: {source: printed, ref: "cells 18-19, 27"}
+  - id: a_q6
+    stage_type: answer
+    description: Spearman correlation, acute T-cell screen S1 vs S2 (0.0216).
+    depends_on: [st_replicate_corr]
+    quantities:
+      - {name: spearman_acute, expected: {type: range, min: 0.0, max: 0.09}, aliases: [rho_acute], context: ["\\brho\\b", "spearman", "correlation="]}
+    provenance: {source: derived, ref: "re-computed (cell 19 output missing): rho 0.0216, p 8.7e-04"}
+  - id: r_rho_chronic
+    stage_type: result_table
+    description: Spearman correlation between replicates in each chronic round.
+    depends_on: [st_replicate_corr]
+    quantities:
+      - {name: spearman_chronic_r1, expected: {type: number, value: 0.02097, abs_tol: 0.0005}, aliases: [rho_round1], context: ["Round ?1", "r1"]}
+      - {name: spearman_chronic_r2, expected: {type: number, value: 0.01372, abs_tol: 0.0005}, aliases: [rho_round2], context: ["Round ?2", "r2"]}
+      - {name: spearman_chronic_r3, expected: {type: number, value: 0.01469, abs_tol: 0.0005}, aliases: [rho_round3], context: ["Round ?3", "r3"]}
+    require: any
+    provenance: {source: printed, ref: "cell 27"}
+  - id: a_q4
+    stage_type: answer
+    description: Spearman correlation, chronic round 1 S1 vs S2 (0.02097).
+    depends_on: [r_rho_chronic]
+    quantities:
+      - {name: spearman_chronic_r1, expected: {type: range, min: 0.001, max: 0.09}, aliases: [rho_round1], context: ["\\brho\\b", "spearman", "correlation="]}
+    provenance: {source: printed, ref: "cell 27"}
+  - id: fl_min_p
+    stage_type: filter
+    description: Per condition, take the minimum p-value over the two replicates and keep RefSeq IDs with min p < 0.05.
+    depends_on: [in_mageck]
+    hidden: true
+    params: {statistic: "min(S1, S2)", threshold: 0.05}
+    probe:
+      patterns: ["\\.min\\(axis\\s*=\\s*1\\)", "pmin\\(", "np\\.minimum", "min\\(axis=1"]
+    provenance: {source: printed, ref: "cells 20-21, 28-29"}
+  - id: tf_map_symbols
+    stage_type: transform
+    description: Map RefSeq IDs to gene symbols for the gene lists and the background (all screened IDs).
+    depends_on: [fl_min_p]
+    gating: false
+    probe:
+      patterns: ["mygene", "querymany", "org\\.Hs\\.eg", "bitr\\(", "mapIds", "biomart", "refseq.{0,20}symbol"]
+    provenance: {source: printed, ref: "cells 22-24, 29"}
+  - id: md_ora
+    stage_type: model
+    description: Over-representation analysis of each condition's gene list against Reactome pathways with the screened genes as background; significance at adjusted p < 0.05.
+    depends_on: [tf_map_symbols]
+    params: {tool: "gseapy.enrich", gene_sets: ReactomePathways.gmt, alpha: 0.05}
+    probe:
+      patterns: ["gp\\.enrich", "gseapy", "enricher\\(", "hypergeom", "fisher_exact", "ReactomePathways\\.gmt"]
+    provenance: {source: printed, ref: "cells 25-26, 30"}
+  - id: r_ora_sig
+    stage_type: result_table
+    description: Significant pathways per condition (acute 0, chronic round 1 0, chronic round 2 2 unique terms, chronic round 3 0).
+    depends_on: [md_ora]
+    quantities:
+      - {name: adj_p_cgmp_effects, expected: {type: number, value: 0.032708, abs_tol: 0.0005}, aliases: [adjusted_p_value], context: ["cGMP", "guanylate", "Adjusted"]}
+    probe:
+      patterns: ["cGMP effects", "guanylate cyclase"]
+    provenance: {source: printed, ref: "cells 26, 30"}
+  - id: a_q1
+    stage_type: answer
+    description: The condition with significant pathways, chronic round 2.
+    depends_on: [r_ora_sig]
+    quantities:
+      - {name: strongest_condition, expected: {type: label, value: "chronic round 2", synonyms: ["round 2", "chronic r2", "Chronic Round2", "chronic screen round 2"]}}
+    provenance: {source: printed, ref: "cell 30"}
+  - id: a_q3
+    stage_type: answer
+    description: Pathways significant in all three chronic rounds (none).
+    depends_on: [r_ora_sig]
+    quantities:
+      - {name: n_pathways_all_rounds, expected: {type: integer, value: 0}, context: ["all (three|3) rounds", "across all", "common"]}
+    provenance: {source: printed, ref: "cell 30 (rounds 1 and 3 have none)"}
+  - id: a_q5
+    stage_type: answer
+    description: Share of the four T-cell conditions with significant pathways (1/4 = 25%).
+    depends_on: [r_ora_sig]
+    quantities:
+      - {name: pct_conditions_enriched, expected: {type: percent, value: 25.0, decimals: 0}, context: ["conditions", "screens", "percent of", "pct"]}
+    provenance: {source: derived, ref: "cells 26, 30"}
+  - id: a_q7
+    stage_type: answer
+    description: Most significant pathway in chronic round 2 (cGMP effects, p 2.4e-05; ties on adjusted p with the NO pathway).
+    depends_on: [r_ora_sig]
+    quantities:
+      - {name: top_pathway_r2, expected: {type: label, value: "cGMP effects"}}
+    provenance: {source: printed, ref: "cell 30"}

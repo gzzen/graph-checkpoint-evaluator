@@ -1,0 +1,70 @@
+# BixBench v1.5 bix-60: mean PhyKIT treeness of single-gene trees.
+# No capsule notebook exists locally. The harness data are ten ClipKIT-trimmed BUSCO alignments and their IQ-TREE
+# trees (animal lineage, the same files as in the bix-28 scogs_animals.zip); treeness was recomputed with PhyKIT.
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-60
+title: Average treeness of single-gene trees (PhyKIT)
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 1aea473d-db97-4c12-9a1e-6c850ddc9110
+  archetype: phylo_phykit
+  rerun_evidence: builders/bixbench/evidence/scogs_L5.json
+  data: ["{1003258,100698,1010730,1014314,1018517,1019762,1038775,1041560,1065019,1079827}at2759.faa.mafft.clipkit(.treefile)"]
+notes: >-
+  No reference notebook. pk_treeness on the ten shipped trees gives 0 for eight three-taxon trees, 0.0884 for
+  1014314at2759 and 0.0079 for 1018517at2759 (sum 0.0963; the same values were found independently in
+  DASC/0907 per_question/bix-60-q1). The question says "all 5 trees": the mean over five trees that include the
+  two non-zero ones (e.g. the first five files) is 0.01926, x 1000 = 19.26 -> 19, the official answer. The mean
+  over all ten shipped trees is 0.00963 -> 10. Which five trees the question means is not recoverable; the
+  tree-set choice is recorded as a hidden step with the ten-tree reading as a variant.
+tasks:
+  - id: bix-60-q1
+    answer_node: a_q1
+    question: Average treeness across all 5 trees (PhyKIT treeness), multiplied by 1000 and rounded to the nearest integer.
+    ideal: {type: integer, value: 19}
+    label_status: consistent
+    notes: Reproduced only with a five-tree denominator; the harness ships ten trees (variant a_q1_ten_trees gives 10).
+nodes:
+  - id: in_trees
+    stage_type: inputs
+    description: Locate the single-gene tree files (Newick) and their alignments.
+    quantities:
+      - {name: n_trees, expected: {type: integer, value: 10}, aliases: [n_treefiles, trees], context: ["trees?", "treefiles?"]}
+    probe:
+      patterns: ["\\.treefile"]
+    provenance: {source: authored, ref: "harness data listing (10 treefiles)"}
+  - id: r_treeness
+    stage_type: result_table
+    description: PhyKIT treeness (internal branch length / total tree length) per tree.
+    depends_on: [in_trees]
+    params: {tool: "PhyKIT treeness"}
+    quantities:
+      - {name: treeness_1014314, expected: {type: number, value: 0.0884, abs_tol: 0.0005}, aliases: [treeness], context: ["1014314"]}
+      - {name: treeness_1018517, expected: {type: number, value: 0.0079, abs_tol: 0.0005}, aliases: [treeness], context: ["1018517"]}
+    require: any
+    probe:
+      patterns: ["pk_treeness", "phykit\\s+(treeness|tness)", "treeness"]
+    provenance: {source: rerun, ref: "evidence/scogs_L5.json (bix-60 treeness)"}
+  - id: co_five_trees
+    stage_type: cohort
+    description: Average over five trees, as the question states, including the two trees with non-zero treeness.
+    depends_on: [r_treeness]
+    hidden: true
+    provenance: {source: question, notes: "the harness ships ten trees"}
+  - id: a_q1
+    stage_type: answer
+    description: Mean treeness over five trees x 1000, rounded (0.0963 / 5 x 1000 = 19.26 -> 19).
+    depends_on: [co_five_trees]
+    quantities:
+      - {name: mean_treeness_x1000, expected: {type: integer, value: 19}, context: ["treeness", "x ?1000", "\\*\\s*1000", "average", "mean"]}
+    provenance: {source: rerun, ref: "official answer reproduced with a five-tree denominator"}
+  - id: a_q1_ten_trees
+    stage_type: answer
+    description: Mean over all ten shipped trees x 1000, rounded (9.63 -> 10).
+    depends_on: [r_treeness]
+    variant_of: a_q1
+    gating: false
+    quantities:
+      - {name: mean_treeness_x1000_ten, expected: {type: integer, value: 10}, context: ["treeness", "x ?1000", "\\*\\s*1000", "average", "mean"]}
+    provenance: {source: rerun, ref: "0.0963 / 10 x 1000"}

@@ -1,0 +1,105 @@
+# BixBench v1.5 bix-30: serum miRNAs in myotonic dystrophy type 1, per-miRNA t-tests and multiple-testing correction.
+# Reference: CapsuleNotebook-3d4eb7bb (R). Counts are printed (cell 16); q1 is 49 / 175 (derived).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-30
+title: Differential serum miRNA levels in DM1 patients vs controls before and after multiple-testing correction
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 3d4eb7bb-4fbc-4300-b79a-3eba7a6221bc
+  archetype: tabular_stats
+  data: [pone.0150501.s002.xls]
+notes: >-
+  Ct values for 175 miRNAs in 10 DM1 patients (P_1..P_10) and 10 controls (C_11..C_20). Following the source
+  paper, samples P_3 and C_18 are excluded (9 vs 9). Values are log2-transformed and each miRNA is tested with
+  R's default two-sample t.test (Welch). 49 miRNAs have p <= 0.05; none remain after BH, BY or Bonferroni.
+tasks:
+  - id: bix-30-q1
+    answer_node: a_q1
+    question: Percentage of miRNAs differentially expressed (p <= 0.05) before multiple-testing correction.
+    ideal: {type: percent, value: 28.0, decimals: 0}
+    label_status: consistent
+  - id: bix-30-q3
+    answer_node: a_q3
+    question: Ratio of significant miRNAs after Bonferroni to after Benjamini-Yekutieli correction ("Bonferroni:BY").
+    ideal: {type: label, value: "0:0"}
+    label_status: consistent
+  - id: bix-30-q5
+    answer_node: a_q5
+    question: miRNAs significant after all three corrections (BH, BY, Bonferroni).
+    ideal: {type: integer, value: 0}
+    label_status: consistent
+  - id: bix-30-q6
+    answer_node: a_q6
+    question: miRNAs significant (p <= 0.05) after log2 transformation and t-test, before correction.
+    ideal: {type: integer, value: 49}
+    label_status: consistent
+nodes:
+  - id: in_ct
+    stage_type: inputs
+    description: Load the Ct table (miRNA x sample, 175 miRNAs, 10 patients and 10 controls).
+    quantities:
+      - {name: n_mirnas, expected: {type: integer, value: 175}, aliases: [mirnas, n_rows], context: ["miRNAs?", "rows"]}
+    provenance: {source: printed, ref: "markdown cell 8; cell 10 (rows 1-175)"}
+  - id: co_exclude
+    stage_type: cohort
+    description: Exclude samples P_3 and C_18 (judged unsuitable by the source study), leaving 9 patients and 9 controls.
+    depends_on: [in_ct]
+    hidden: true
+    probe:
+      patterns: ["P_3", "C_18"]
+    provenance: {source: printed, ref: "cell 10, markdown cell 11"}
+  - id: tf_log2
+    stage_type: transform
+    description: Log2-transform the Ct values.
+    depends_on: [co_exclude]
+    probe:
+      patterns: ["log2"]
+    provenance: {source: printed, ref: "cell 13"}
+  - id: st_ttest
+    stage_type: model
+    description: Two-sample t-test (Welch, unequal variances) per miRNA, patients vs controls.
+    depends_on: [tf_log2]
+    probe:
+      patterns: ["t\\.test", "ttest_ind", "welch"]
+    provenance: {source: printed, ref: "cell 13"}
+  - id: a_q6
+    stage_type: answer
+    description: miRNAs with unadjusted p <= 0.05 (49).
+    depends_on: [st_ttest]
+    quantities:
+      - {name: n_sig_unadjusted, expected: {type: integer, value: 49}, aliases: [n_significant], context: ["unadjusted", "p-values? <= ?0\\.05", "before"]}
+    provenance: {source: printed, ref: "cell 16"}
+  - id: a_q1
+    stage_type: answer
+    description: Share of the 175 miRNAs with unadjusted p <= 0.05 (49 / 175 = 28%).
+    depends_on: [st_ttest]
+    quantities:
+      - {name: pct_sig_unadjusted, expected: {type: percent, value: 28.0, decimals: 0}, context: ["percent", "proportion", "fraction", "share"]}
+    provenance: {source: derived, ref: "cell 16 and 175 rows"}
+  - id: st_adjust
+    stage_type: model
+    description: Adjust the p-values with Benjamini-Hochberg, Benjamini-Yekutieli and Bonferroni and count adjusted p <= 0.05.
+    depends_on: [st_ttest]
+    quantities:
+      - {name: n_sig_bh, expected: {type: integer, value: 0}, aliases: [n_bh], context: ["Hochberg", "\\bBH\\b"]}
+      - {name: n_sig_by, expected: {type: integer, value: 0}, aliases: [n_by], context: ["Yekutieli", "fdr_by"]}
+      - {name: n_sig_bonferroni, expected: {type: integer, value: 0}, aliases: [bonferroni], context: ["Bonferroni"]}
+    require: any
+    probe:
+      patterns: ["p\\.adjust", "multipletests", "fdr_by", "bonferroni"]
+    provenance: {source: printed, ref: "cell 16"}
+  - id: a_q3
+    stage_type: answer
+    description: "Bonferroni vs BY significant counts, written as 0:0."
+    depends_on: [st_adjust]
+    quantities:
+      - {name: ratio_bonferroni_by, expected: {type: label, value: "0:0", synonyms: ["0 : 0"]}}
+    provenance: {source: printed, ref: "cell 16"}
+  - id: a_q5
+    stage_type: answer
+    description: miRNAs significant under all three corrections (0).
+    depends_on: [st_adjust]
+    quantities:
+      - {name: n_sig_all_methods, expected: {type: integer, value: 0}, context: ["all (three|3)", "after"]}
+    provenance: {source: printed, ref: "cell 16"}

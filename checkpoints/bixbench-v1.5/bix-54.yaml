@@ -1,0 +1,166 @@
+# BixBench v1.5 bix-54: P. aeruginosa swarming area vs ΔrhlI frequency in ΔrhlI:ΔlasI co-cultures.
+# Reference: CapsuleNotebook-9e52daf6 (R). All answers are printed (cells 17-19).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-54
+title: Quadratic, cubic and natural-spline fits of swarming area against ΔrhlI frequency
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 9e52daf6-ca58-43e8-e732-fbac3459d295
+  archetype: tabular_stats
+  data: [Swarm_2.csv]
+notes: >-
+  Swarm_2.csv has 45 colonies (3 per strain/ratio). The notebook drops wild type (StrainNumber 1) and pure ΔlasI
+  (98), leaving 39 colonies: the 36 ΔrhlI:ΔlasI mixtures and the 3 pure ΔrhlI colonies (287, ratio 1:0, frequency
+  1.0). Dropping the pure ΔrhlI colonies as well (36 colonies) is a different cohort. The notebook splits Ratio "a:b" into ΔrhlI and ΔlasI parts and uses Frequency_rhlI = a / (a + b). Three lm fits of
+  Area: quadratic (raw poly, R² 0.3501, peak 0.703 / 113,394), cubic (raw poly, R² 0.5876, peak 0.8128 / 137,098)
+  and natural spline ns(df = 4) (R² 0.8062, F p 1.131e-11). The spline peak is found on a 1,000-point grid over
+  the observed frequency range: frequency 0.9077, area 184,371.8, 95% CI 157,912.4-210,831.3. The spline is the
+  best of the three by R². bix-54-q4's official range is written with swapped bounds (1.13e-10, 1.13e-12).
+tasks:
+  - id: bix-54-q1
+    answer_node: a_q1
+    question: Frequency of ΔrhlI in the population at which the natural spline model predicts maximum swarming area.
+    ideal: {type: range, min: 0.88, max: 1.0}
+    label_status: consistent
+  - id: bix-54-q2
+    answer_node: a_q2
+    question: R-squared of the cubic model of swarming area on ΔrhlI frequency.
+    ideal: {type: range, min: 0.58, max: 0.59}
+    label_status: consistent
+  - id: bix-54-q3
+    answer_node: a_q3
+    question: Lower bound of the 95% CI of the peak swarming area predicted by the natural spline model.
+    ideal: {type: range, min: 157500, max: 158000}
+    label_status: consistent
+  - id: bix-54-q4
+    answer_node: a_q4
+    question: p-value of the overall F-statistic of lm(Area ~ ns(Frequency_rhlI, df = 4)).
+    ideal: {type: range, min: 1.13e-10, max: 1.13e-12}
+    label_status: consistent
+  - id: bix-54-q5
+    answer_node: a_q5
+    question: ΔrhlI:ΔlasI frequency at which the natural spline model predicts maximum colony area.
+    ideal: {type: range, min: 0.90, max: 0.99}
+    label_status: consistent
+  - id: bix-54-q6
+    answer_node: a_q6
+    question: R-squared of the natural spline model.
+    ideal: {type: range, min: 0.80, max: 0.81}
+    label_status: consistent
+  - id: bix-54-q7
+    answer_node: a_q7
+    question: Maximum colony area (mm²) at the optimal frequency under the best of the quadratic, cubic and natural spline models.
+    ideal: {type: range, min: 184000, max: 185000}
+    label_status: consistent
+nodes:
+  - id: in_swarm
+    stage_type: inputs
+    description: Load the swarming table (one row per colony with strain, ratio and area).
+    quantities:
+      - {name: n_rows, expected: {type: integer, value: 45}, aliases: [rows, n_colonies], context: ["Rows", "colonies", "observations"]}
+    provenance: {source: printed, ref: "cell 13 (Rows: 45)"}
+  - id: co_mixed
+    stage_type: cohort
+    description: Drop wild type (StrainNumber 1) and pure ΔlasI (98), keeping 39 colonies, the 36 ΔrhlI:ΔlasI mixtures plus the 3 pure ΔrhlI colonies (frequency 1.0).
+    depends_on: [in_swarm]
+    hidden: true
+    quantities:
+      - {name: n_colonies_used, expected: {type: integer, value: 39}, aliases: [n_obs, n], context: ["rows", "observations", "colonies", "mix"]}
+    probe:
+      patterns: ["StrainNumber", "c\\(\\s*['\"]1['\"]\\s*,\\s*['\"]98['\"]"]
+    provenance: {source: printed, ref: "cell 16; residual df 36/35/34"}
+  - id: tf_frequency
+    stage_type: transform
+    description: Convert the ratio a:b into the ΔrhlI frequency a / (a + b).
+    depends_on: [co_mixed]
+    probe:
+      patterns: ["Frequency_rhlI", "separate\\(\\s*Ratio", "split\\(['\"]:['\"]", "str\\.split\\(['\"]:"]
+    provenance: {source: printed, ref: "cell 16"}
+  - id: md_quadratic
+    stage_type: model
+    description: Linear model of Area on a raw quadratic polynomial of frequency.
+    depends_on: [tf_frequency]
+    gating: false
+    quantities:
+      - {name: r2_quadratic, expected: {type: number, value: 0.3501, abs_tol: 0.0005}, aliases: [r_squared], context: ["quadratic", "R-squared"]}
+    provenance: {source: printed, ref: "cell 17"}
+  - id: md_cubic
+    stage_type: model
+    description: Linear model of Area on a raw cubic polynomial of frequency.
+    depends_on: [tf_frequency]
+    probe:
+      patterns: ["poly\\([^)]*3", "I\\(.{0,20}\\^3\\)", "\\*\\*\\s*3", "degree\\s*=\\s*3", "polyfit\\([^)]*3"]
+    provenance: {source: printed, ref: "cell 18"}
+  - id: a_q2
+    stage_type: answer
+    description: Multiple R² of the cubic model (0.5876).
+    depends_on: [md_cubic]
+    quantities:
+      - {name: r2_cubic, expected: {type: range, min: 0.58, max: 0.59}, specificity: low, aliases: [r_squared], context: ["cubic", "R-squared", "R2"]}
+    provenance: {source: printed, ref: "cell 18 (Multiple R-squared: 0.5876)"}
+  - id: md_spline
+    stage_type: model
+    description: Linear model of Area on a natural cubic spline of frequency with 4 degrees of freedom.
+    depends_on: [tf_frequency]
+    params: {formula: "Area ~ ns(Frequency_rhlI, df = 4)"}
+    probe:
+      patterns: ["ns\\(", "natural.?spline", "patsy.*cr\\(", "\\bcr\\(", "dmatrix"]
+    provenance: {source: printed, ref: "cell 19"}
+  - id: a_q6
+    stage_type: answer
+    description: Multiple R² of the spline model (0.8062).
+    depends_on: [md_spline]
+    quantities:
+      - {name: r2_spline, expected: {type: range, min: 0.80, max: 0.81}, specificity: low, aliases: [r_squared], context: ["spline", "R-squared", "R2"]}
+    provenance: {source: printed, ref: "cell 19 (Multiple R-squared: 0.8062)"}
+  - id: a_q4
+    stage_type: answer
+    description: p-value of the spline model's overall F test (1.131e-11; F 35.35 on 4 and 34 df).
+    depends_on: [md_spline]
+    quantities:
+      - {name: f_p_spline, expected: {type: range, min: 1.13e-12, max: 1.13e-10}, aliases: [p_value, f_pvalue], context: ["F-statistic", "p-value", "spline"]}
+    provenance: {source: printed, ref: "cell 19"}
+  - id: r_spline_peak
+    stage_type: result_table
+    description: Predict the spline on a fine grid over the observed frequencies and take the maximum (frequency 0.9077, area 184,371.8, 95% CI 157,912.4-210,831.3).
+    depends_on: [md_spline]
+    quantities:
+      - {name: peak_frequency_spline, expected: {type: number, value: 0.9077, abs_tol: 0.005}, specificity: low, aliases: [peak_frequency], context: ["peak", "\\bmax(imum)?\\b", "frequency"]}
+      - {name: peak_area_spline, expected: {type: number, value: 184371.8, abs_tol: 300}, aliases: [peak_area, peak_fitness], context: ["peak", "\\bmax(imum)?\\b", "area", "fitness"]}
+    require: any
+    provenance: {source: printed, ref: "cell 19"}
+  - id: a_q1
+    stage_type: answer
+    description: Spline peak frequency (0.9077) within the official 0.88-1.0.
+    depends_on: [r_spline_peak]
+    quantities:
+      - {name: peak_frequency_spline, expected: {type: range, min: 0.88, max: 1.0}, specificity: low, aliases: [peak_frequency], context: ["peak", "\\bmax(imum)?\\b", "frequency"]}
+    provenance: {source: printed, ref: "cell 19"}
+  - id: a_q5
+    stage_type: answer
+    description: Spline peak frequency (0.9077) within the official 0.90-0.99.
+    depends_on: [r_spline_peak]
+    quantities:
+      - {name: peak_frequency_spline, expected: {type: range, min: 0.90, max: 0.99}, specificity: low, aliases: [peak_frequency], context: ["peak", "\\bmax(imum)?\\b", "frequency"]}
+    provenance: {source: printed, ref: "cell 19"}
+  - id: a_q3
+    stage_type: answer
+    description: Lower 95% confidence bound of the predicted peak area (157,912.4).
+    depends_on: [r_spline_peak]
+    quantities:
+      - {name: peak_area_ci_low, expected: {type: range, min: 157500, max: 158000}, aliases: [lwr, ci_low, lower], context: ["lower", "lwr", "CI", "confidence"]}
+    provenance: {source: printed, ref: "cell 19 (157912.4 210831.3)"}
+  - id: st_model_choice
+    stage_type: downstream
+    description: Choose the best of the three models by fit (R²); the natural spline wins.
+    depends_on: [md_quadratic, md_cubic, md_spline]
+    gating: false
+    provenance: {source: printed, ref: "cells 17-19 (R² 0.350 / 0.588 / 0.806)"}
+  - id: a_q7
+    stage_type: answer
+    description: Peak area under the best model, the spline (184,371.8).
+    depends_on: [r_spline_peak, st_model_choice]
+    quantities:
+      - {name: peak_area_best, expected: {type: range, min: 184000, max: 185000}, aliases: [peak_area, peak_fitness], context: ["peak", "\\bmax(imum)?\\b", "area", "fitness"]}
+    provenance: {source: printed, ref: "cell 19"}

@@ -1,0 +1,96 @@
+# BixBench v1.5 bix-25: treeness / RCV of BUSCO single-copy orthologs in animals vs fungi (PhyKIT).
+# Reference: CapsuleNotebook-964b67db (bash + Python). Per-gene treeness/RCV values are printed (cell 37).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-25
+title: Treeness over RCV of single-copy orthologs in animals vs fungi
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 964b67db-88d8-4286-9995-10ccc6ba4c39
+  archetype: phylo_phykit
+  rerun_evidence: builders/bixbench/evidence/scogs_L5.json
+  data: ["Animals_{Cele,Ggal,Mmus,Xlae}.faa", "Fungi_{Ncra,Scer,Spom,Umay}.faa", "*.busco.zip", "scogs_animals.zip", "scogs_fungi.zip"]
+notes: >-
+  Same pipeline as bix-28: BUSCO (eukaryota_odb10), per-lineage multi-FASTA per single-copy BUSCO, MAFFT --auto,
+  ClipKIT default, IQ-TREE -m TEST, then PhyKIT treeness_over_rcv (pk_tor) on each trimmed alignment and its
+  tree. The harness data ships the alignments and trees (scogs_*.zip), so the tree-building stages are
+  non-gating. Notebook bug in cell 37: busco_id is computed from $aln before $aln is set, so gene labels are
+  shifted by one row and the first animal tree's row is dropped (99 animal rows instead of 100; the 249 fungal
+  values are complete). Recomputing pk_tor on the harness zips reproduces the fungal median 0.2585.
+  q4 (maximum treeness/RCV among genes with > 70% alignment gaps) is not computed in the notebook, and no tested
+  gap definition reproduces 0.21: gap cells or gap-containing sites of the trimmed or untrimmed alignments, and
+  the fraction ClipKIT trimmed, give either no gene above 70% or a maximum of 0.3343. a_q4 therefore holds the
+  official value only (provenance: authored).
+tasks:
+  - id: bix-25-q1
+    answer_node: a_q1
+    question: Median treeness/RCV for fungal genes.
+    ideal: {type: number, value: 0.26, decimals: 2}
+    label_status: consistent
+  - id: bix-25-q4
+    answer_node: a_q4
+    question: Maximum treeness/RCV among genes with > 70% alignment gaps.
+    ideal: {type: number, value: 0.21, decimals: 2}
+    label_status: unverified
+    notes: Not reproducible from the notebook or the harness alignments under the gap definitions tried (see graph notes).
+nodes:
+  - id: in_proteomes
+    stage_type: inputs
+    description: Load the eight proteomes (four animals, four fungi) and the BUSCO eukaryota_odb10 lineage dataset.
+    gating: false
+    quantities:
+      - {name: n_proteomes, expected: {type: integer, value: 8}, aliases: [proteomes, n_species], context: ["proteome", "species", "\\.faa"]}
+    provenance: {source: printed, ref: "data folder"}
+  - id: tf_align
+    stage_type: transform
+    description: For each single-copy BUSCO and lineage, build a multi-FASTA across the lineage's species, align it and trim the alignment.
+    depends_on: [in_proteomes]
+    gating: false
+    params: {orthologs: "BUSCO 5.8.0 single-copy, eukaryota_odb10", aligner: "MAFFT --auto", trimming: "ClipKIT smart-gap"}
+    probe:
+      patterns: ["mafft", "clipkit", "muscle", "trimal", "clustal"]
+    provenance: {source: printed, ref: "cells 20-28"}
+  - id: tf_trees
+    stage_type: transform
+    description: Infer a maximum-likelihood tree for each trimmed alignment with automatic model selection.
+    depends_on: [tf_align]
+    gating: false
+    params: {tool: "IQ-TREE 2.3.6", model: "-m TEST"}
+    probe:
+      patterns: ["iqtree", "raxml", "fasttree", "phyml"]
+    provenance: {source: printed, ref: "cell 32"}
+  - id: r_tor
+    stage_type: result_table
+    description: Treeness divided by relative composition variability for every gene (trimmed alignment + tree); one row per gene and lineage.
+    depends_on: [tf_trees]
+    params: {tool: "PhyKIT treeness_over_rcv"}
+    quantities:
+      - {name: n_genes_fungi, expected: {type: integer, value: 249}, aliases: [fungal_genes, n_fungal_trees], context: ["fung"]}
+      - {name: n_genes_animals, expected: {type: integer, value: 100}, aliases: [animal_genes, n_animal_trees], context: ["animal"]}
+    require: any
+    probe:
+      patterns: ["treeness_over_rcv", "pk_tor", "\\btor\\b", "treeness.{0,5}rcv"]
+    provenance: {source: printed, ref: "cell 37 (249 fungal rows; 99 animal rows because of the labelling bug, 100 trees)"}
+  - id: a_q1
+    stage_type: answer
+    description: Median treeness/RCV over the 249 fungal genes (0.2585).
+    depends_on: [r_tor]
+    quantities:
+      - {name: median_tor_fungi, expected: {type: number, value: 0.2585, decimals: 2}, context: ["median"]}
+    provenance: {source: derived, ref: "cell 37; reproduced in evidence/scogs_L5.json (bix-25 treeness/rcv)"}
+  - id: fl_gappy
+    stage_type: filter
+    description: Select genes whose alignment is more than 70% gaps.
+    depends_on: [tf_align]
+    gating: false
+    params: {threshold: 0.7, definition: "not stated; see graph notes"}
+    probe:
+      patterns: ["gap", "alignment_length_no_gaps", "pk_alng"]
+    provenance: {source: question, notes: "The notebook has no gap filter."}
+  - id: a_q4
+    stage_type: answer
+    description: Maximum treeness/RCV among the gappy genes (official value; not reproduced).
+    depends_on: [r_tor, fl_gappy]
+    quantities:
+      - {name: max_tor_gappy, expected: {type: number, value: 0.21, decimals: 2}, context: ["\\bmax(imum)?\\b", "gap"]}
+    provenance: {source: authored, ref: "official answer key", notes: "unverified"}

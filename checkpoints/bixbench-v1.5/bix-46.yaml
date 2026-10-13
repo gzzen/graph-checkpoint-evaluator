@@ -1,0 +1,56 @@
+# BixBench v1.5 bix-46: log2 fold changes of P. aeruginosa genes in the rhlI mutant (precomputed DESeq2 results).
+# Reference: CapsuleNotebook-d37acffb (R). Both answers are printed (cells 18-19).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-46
+title: Log2 fold changes of mexG and PA14_35160 in ΔrhlI vs wild type
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: d37acffb-d802-4ce0-8caa-66f50667367a
+  archetype: rnaseq_de
+  data: [res_1vs97.rds, res_1vs98.rds, Pseudomonas_aeruginosa_UCBPP-PA14.csv]
+notes: >-
+  The capsule ships DESeq2 result objects (5,828 genes each): res_1vs97 (ΔrhlI, strain 97, vs wild type, strain 1) and res_1vs98
+  (ΔlasI vs wild type). The annotation table maps PA14 locus tags to gene names (mexG = PA14_09540). Answers are
+  read from the log2FoldChange column of res_1vs97; no model is fit.
+tasks:
+  - id: bix-46-q1
+    answer_node: a_q1
+    question: Log2 fold change (2 decimals) of mexG in ΔrhlI (strain 97) vs wild type (strain 1).
+    ideal: {type: number, value: -4.96, decimals: 2}
+    label_status: consistent
+  - id: bix-46-q4
+    answer_node: a_q4
+    question: Log2 fold change (2 decimals) of the phenazine pathway gene PA14_35160 in the ΔrhlI mutant.
+    ideal: {type: number, value: -4.10, decimals: 2}
+    label_status: consistent
+nodes:
+  - id: in_results
+    stage_type: inputs
+    description: Read the precomputed DESeq2 results for ΔrhlI vs wild type (res_1vs97.rds) and the PA14 gene annotation.
+    quantities:
+      - {name: n_result_genes, expected: {type: integer, value: 5828}, aliases: [n_genes, rows], context: ["rows", "genes"]}
+    probe:
+      patterns: ["res_1vs97", "readRDS", "pyreadr", "rpy2"]
+    provenance: {source: authored, ref: "row count of res_1vs97.rds (5828; the annotation table has 5984 rows, cell 13)"}
+  - id: tf_gene_names
+    stage_type: transform
+    description: Map locus tags to gene names to find mexG (PA14_09540).
+    depends_on: [in_results]
+    probe:
+      patterns: ["PA14_09540", "Gene Name", "Locus Tag"]
+    provenance: {source: printed, ref: "cells 17-18"}
+  - id: a_q1
+    stage_type: answer
+    description: log2FoldChange of mexG (PA14_09540) in res_1vs97 (-4.9642).
+    depends_on: [tf_gene_names]
+    quantities:
+      - {name: lfc_mexg_rhli, expected: {type: number, value: -4.9642, decimals: 2}, aliases: [log2FoldChange], context: ["mexG", "PA14_09540"]}
+    provenance: {source: printed, ref: "cell 18 (PA14_09540 -4.9642248)"}
+  - id: a_q4
+    stage_type: answer
+    description: log2FoldChange of PA14_35160 in res_1vs97 (-4.0991).
+    depends_on: [in_results]
+    quantities:
+      - {name: lfc_pa14_35160_rhli, expected: {type: number, value: -4.0991, decimals: 2}, aliases: [log2FoldChange], context: ["PA14_35160"]}
+    provenance: {source: printed, ref: "cell 18 (PA14_35160 -4.0991135)"}

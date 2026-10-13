@@ -1,0 +1,78 @@
+# BixBench v1.5 bix-33: AAV9 mini-dystrophin treatment, post vs pre DEGs per peripheral immune cell type.
+# Reference: CapsuleNotebook-a5fba1a0 (Python). The per-cell-type DEG counts are only shown in a chart (cell 21);
+# they were recounted from the workbook (evidence derived_78_L1_L3.json). SOCS3 rows are printed (cell 26).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-33
+title: Differentially expressed genes per peripheral immune cell type after AAV9 mini-dystrophin
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: a5fba1a0-ad42-41da-a299-201655a5ffe8
+  archetype: tabular_stats
+  data: ["Supplemental Data File 1 PostvsPre_DEG_tables_ANNOTATED by_cell_type.xlsx", MS_DMD_all_conga_final.h5ad]
+notes: >-
+  The workbook has one precomputed Seurat DE table (post vs pre) per cell type, 25 tabs. The notebook selects 7
+  "peripheral immune" tabs (Treg, CD14 Mono, CD16 Mono, cDC2, pDC, gdT, ILC) and counts genes with p_val_adj <
+  0.05 per tab: CD14 Mono 315, CD16 Mono 240, Treg 13, gdT 4, cDC2 1, ILC 1, pDC 0. Over all 25 tabs CD14 Mono
+  is still the largest (NK 118 next). SOCS3 has p_val_adj < 0.05 only in CD14 Mono (3.4e-54), in the 7 tabs and
+  in all 25. The h5ad (CoNGA) file is not needed.
+tasks:
+  - id: bix-33-q1
+    answer_node: a_q1
+    question: Immune cell type with the most significant DEGs after AAV9 mini-dystrophin treatment.
+    ideal: {type: label, value: "CD14 Monocytes"}
+    label_status: consistent
+  - id: bix-33-q6
+    answer_node: a_q6
+    question: Number of peripheral immune cell types with significant (adjusted p < 0.05) differential expression of SOCS3.
+    ideal: {type: integer, value: 1}
+    label_status: consistent
+nodes:
+  - id: in_deg_tables
+    stage_type: inputs
+    description: Read the per-cell-type DE tables (one workbook sheet per cell type) and collate them with a cell-type column.
+    quantities:
+      - {name: n_sheets, expected: {type: integer, value: 25}, aliases: [n_tabs, sheets, cell_types], context: ["sheets?", "tabs?", "cell types"]}
+    probe:
+      patterns: ["sheet_name\\s*=\\s*None", "PostvsPre_DEG_tables", "excel_sheets", "ExcelFile"]
+    provenance: {source: derived, ref: "workbook (25 sheets)"}
+  - id: fl_padj
+    stage_type: filter
+    description: Call a gene significant in a cell type when p_val_adj < 0.05 (no fold-change cutoff).
+    depends_on: [in_deg_tables]
+    params: {column: p_val_adj, threshold: 0.05}
+    probe:
+      patterns: ["p_val_adj"]
+    provenance: {source: printed, ref: "cell 21"}
+  - id: r_deg_counts
+    stage_type: result_table
+    description: Significant genes per cell type.
+    depends_on: [fl_padj]
+    quantities:
+      - {name: n_degs_cd14_mono, expected: {type: integer, value: 315}, aliases: [cd14_mono], context: ["CD14"]}
+      - {name: n_degs_cd16_mono, expected: {type: integer, value: 240}, aliases: [cd16_mono], context: ["CD16"]}
+    require: any
+    provenance: {source: derived, ref: "derived_78_L1_L3.json bix-33-q1 counts"}
+  - id: a_q1
+    stage_type: answer
+    description: Cell type with the most significant genes (CD14 monocytes, 315).
+    depends_on: [r_deg_counts]
+    quantities:
+      - {name: top_cell_type, expected: {type: label, value: "CD14 Monocytes", synonyms: ["CD14 Mono", "CD14+ monocytes", "CD14 monocyte", "classical monocytes"]}}
+    provenance: {source: derived, ref: "cell 21 chart; recount"}
+  - id: r_socs3
+    stage_type: result_table
+    description: SOCS3 rows across cell types and their adjusted p-values.
+    depends_on: [fl_padj]
+    quantities:
+      - {name: socs3_padj_cd14_mono, expected: {type: number, value: 3.3776e-54, sig_figs: 3}, aliases: [p_val_adj], context: ["SOCS3", "CD14"]}
+    probe:
+      patterns: ["SOCS3"]
+    provenance: {source: printed, ref: "cells 26-27"}
+  - id: a_q6
+    stage_type: answer
+    description: Cell types where SOCS3 is significant (1, CD14 Mono).
+    depends_on: [r_socs3]
+    quantities:
+      - {name: n_cell_types_socs3, expected: {type: integer, value: 1}, context: ["SOCS3", "cell types?"]}
+    provenance: {source: printed, ref: "cell 27"}

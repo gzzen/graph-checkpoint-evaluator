@@ -1,0 +1,137 @@
+# BixBench v1.5 bix-38: tree lengths of BUSCO single-copy orthologs in animals vs fungi (PhyKIT tree_length).
+# Reference: CapsuleNotebook-975f3e91 (bash + Python). Per-gene tree lengths are printed (cell 38); every answer
+# is a summary of that table (provenance: derived, builders/bixbench/evidence/derived_78_L1_L3.json).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-38
+title: Tree lengths of single-copy orthologs in animals vs fungi
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: 975f3e91-53b0-44b1-ac9f-20023d9c8cd0
+  archetype: phylo_phykit
+  data: ["Animals_{Cele,Ggal,Mmus,Xlae}.faa", "Fungi_{Ncra,Scer,Spom,Umay}.faa", "*.busco.zip", "scogs_animals.zip", "scogs_fungi.zip"]
+notes: >-
+  Same pipeline as bix-28: BUSCO (eukaryota_odb10) per proteome, per-lineage multi-FASTA per single-copy BUSCO,
+  MAFFT --auto, ClipKIT default, IQ-TREE -m TEST, then PhyKIT tree_length per tree (100 animal and 249 fungal
+  trees). The harness data ships the alignments and trees (scogs_*.zip), so the tree-building stages are
+  non-gating; r_tree_len is the first gating checkpoint. Medians: animals 1.4219, fungi 3.0962; mean animal 1.4699.
+  q6 asks for the median of per-ortholog fungal/animal ratios (1.904 over 96 orthologs present in both lineages);
+  the official 2.178 is the ratio of the two medians (the q1 quantity).
+tasks:
+  - id: bix-38-q1
+    answer_node: a_q1
+    question: Fold-change in median tree length between fungi and animals (PhyKIT).
+    ideal: {type: label, value: "2x larger in fungi"}
+    label_status: consistent
+    notes: Reference ratio 2.178; the prose ideal is matched by the label or a ratio within 0.1 of 2.178.
+  - id: bix-38-q2
+    answer_node: a_q2
+    question: Variance of tree lengths among animal single-copy orthologs.
+    ideal: {type: number, value: 0.55, decimals: 2}
+    label_status: consistent
+  - id: bix-38-q3
+    answer_node: a_q3
+    question: Percentage of fungal single-copy orthologs with tree length > 5.0.
+    ideal: {type: percent, value: 5.0, decimals: 0}
+    label_status: consistent
+  - id: bix-38-q5
+    answer_node: a_q5
+    question: Percentage of fungal orthologs with tree length above the mean animal tree length.
+    ideal: {type: percent, value: 94.0, decimals: 0}
+    label_status: consistent
+  - id: bix-38-q6
+    answer_node: a_q6
+    question: Median ratio of fungal to animal tree lengths across paired orthologs.
+    ideal: {type: number, value: 2.178, decimals: 3}
+    label_status: mismatch
+    notes: The median of paired ratios is 1.904 (variant node a_q6_paired); 2.178 is the ratio of medians.
+nodes:
+  - id: in_proteomes
+    stage_type: inputs
+    description: Load the eight proteomes (four animals, four fungi) and the BUSCO eukaryota_odb10 lineage dataset.
+    gating: false
+    quantities:
+      - {name: n_proteomes, expected: {type: integer, value: 8}, aliases: [proteomes, n_species], context: ["proteome", "species", "\\.faa"]}
+    provenance: {source: printed, ref: "data folder"}
+  - id: tf_align
+    stage_type: transform
+    description: For each single-copy BUSCO and lineage, build a multi-FASTA across the lineage's species, align it and trim the alignment.
+    depends_on: [in_proteomes]
+    gating: false
+    params: {orthologs: "BUSCO 5.8.0 single-copy, eukaryota_odb10", aligner: "MAFFT --auto", trimming: "ClipKIT smart-gap"}
+    probe:
+      patterns: ["mafft", "clipkit", "muscle", "trimal", "clustal"]
+    provenance: {source: printed, ref: "cells 20-29"}
+  - id: tf_trees
+    stage_type: transform
+    description: Infer a maximum-likelihood tree for each trimmed alignment with automatic model selection.
+    depends_on: [tf_align]
+    gating: false
+    params: {tool: "IQ-TREE 2.3.6", model: "-m TEST"}
+    probe:
+      patterns: ["iqtree", "raxml", "fasttree", "phyml"]
+    provenance: {source: printed, ref: "cell 33"}
+  - id: r_tree_len
+    stage_type: result_table
+    description: Tree length (sum of branch lengths) of every single-gene tree; one row per gene and lineage.
+    depends_on: [tf_trees]
+    params: {tool: "PhyKIT tree_length"}
+    quantities:
+      - {name: n_trees_animals, expected: {type: integer, value: 100}, aliases: [animal_trees, n_animal_genes], context: ["animal"]}
+      - {name: n_trees_fungi, expected: {type: integer, value: 249}, aliases: [fungal_trees, n_fungal_genes], context: ["fung"]}
+      - {name: median_tree_len_animals, expected: {type: number, value: 1.4219, abs_tol: 0.0005}, aliases: [animal_median], context: ["animal"]}
+      - {name: median_tree_len_fungi, expected: {type: number, value: 3.0962, abs_tol: 0.0005}, aliases: [fungal_median, fungi_median], context: ["fung"]}
+    require: any
+    probe:
+      patterns: ["tree_length", "pk_tree_len", "tree_len", "total branch length"]
+    provenance: {source: printed, ref: "cell 38 (100 animal and 249 fungal trees)"}
+  - id: a_q1
+    stage_type: answer
+    description: Ratio of the median fungal to the median animal tree length (3.0962 / 1.4219 = 2.178).
+    depends_on: [r_tree_len]
+    quantities:
+      - name: fold_change_median_tree_len
+        expected:
+          type: any_of
+          options:
+            - {type: label, value: "2x larger in fungi", synonyms: ["about 2x larger in fungi", "2-fold larger in fungi", "twice as large in fungi"]}
+            - {type: number, value: 2.178, abs_tol: 0.1}
+        context: ["fold", "ratio"]
+    provenance: {source: derived, ref: "median(fungi) / median(animals) from cell 38"}
+  - id: a_q2
+    stage_type: answer
+    description: Sample variance of the 100 animal tree lengths (0.5458; population variance 0.5403).
+    depends_on: [r_tree_len]
+    quantities:
+      - {name: var_tree_len_animals, expected: {type: number, value: 0.5458, decimals: 2}, aliases: [variance], context: ["var"]}
+    provenance: {source: derived, ref: "cell 38"}
+  - id: a_q3
+    stage_type: answer
+    description: Percentage of the 249 fungal trees with tree length > 5.0 (13 trees, 5.22%).
+    depends_on: [r_tree_len]
+    quantities:
+      - {name: pct_fungi_tree_len_gt5, expected: {type: percent, value: 5.22, abs_tol: 0.5}, context: ["5\\.0", "> ?5", "exceed"]}
+    provenance: {source: derived, ref: "cell 38"}
+  - id: a_q5
+    stage_type: answer
+    description: Percentage of fungal trees longer than the mean animal tree length 1.4699 (93.98%).
+    depends_on: [r_tree_len]
+    quantities:
+      - {name: pct_fungi_above_mean_animal, expected: {type: percent, value: 93.98, abs_tol: 0.5}, context: ["mean", "exceed", "above"]}
+    provenance: {source: derived, ref: "cell 38"}
+  - id: a_q6
+    stage_type: answer
+    description: Official reading of q6, the ratio of the two lineage medians (2.178).
+    depends_on: [r_tree_len]
+    quantities:
+      - {name: ratio_of_medians, expected: {type: number, value: 2.178, decimals: 3}, context: ["ratio", "median"]}
+    provenance: {source: derived, ref: "cell 38; matches the official ideal"}
+  - id: a_q6_paired
+    stage_type: answer
+    description: Literal reading of q6, the median of fungal/animal tree-length ratios over the 96 orthologs present in both lineages (1.904).
+    depends_on: [r_tree_len]
+    variant_of: a_q6
+    gating: false
+    quantities:
+      - {name: median_paired_ratio, expected: {type: number, value: 1.904, decimals: 3}, context: ["paired", "ratio"]}
+    provenance: {source: derived, ref: "cell 38; evidence derived_78_L1_L3.json bix-38-q6"}

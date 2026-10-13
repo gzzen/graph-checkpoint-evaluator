@@ -1,0 +1,128 @@
+# BixBench v1.5 bix-45: relative composition variability (RCV) of BUSCO single-copy orthologs, animals vs fungi.
+# Reference: CapsuleNotebook-ebc7c8a6 (bash + Python). Per-gene RCV values are printed (cell 30); the Mann-Whitney
+# test is run but not printed (cell 34), so all answers are derived from the table (derived_78_L1_L3.json).
+schema: gce.checkpoint_graph.v1
+group_id: bixbench-v1.5/bix-45
+title: Compositional bias (RCV) of single-copy ortholog alignments in animals vs fungi
+source:
+  benchmark: BixBench
+  version: "1.5"
+  capsule_uuid: ebc7c8a6-ba34-46db-bf8c-b3e310434ba9
+  archetype: phylo_phykit
+  rerun_evidence: builders/bixbench/evidence/scogs_L5.json
+  data: ["Animals_{Cele,Ggal,Mmus,Xlae}.faa", "Fungi_{Ncra,Scer,Spom,Umay}.faa", "eukaryota_odb10.2024-01-08.tar.gz", "harness also ships *.busco.zip and scogs_*.zip"]
+notes: >-
+  Pipeline: BUSCO (eukaryota_odb10) per proteome, per-lineage multi-FASTA per single-copy BUSCO, MAFFT --auto,
+  then PhyKIT rcv on every *untrimmed* MAFFT alignment (241 animal and 255 fungal, including single-sequence
+  alignments with RCV 0). There is no ClipKIT or tree step. The harness zips contain both the untrimmed (.mafft)
+  and the ClipKIT-trimmed (.mafft.clipkit) alignments. Recomputing pk_rcv on the zips reproduces every reference
+  value from the untrimmed alignments (U 6115, p 7.6968e-54); the trimmed alignments give p 1.09e-42, fungal
+  median 0.1972, fungal 75th percentile 0.2329 and median paired difference 0.0928, all of which miss the key.
+  The choice of alignment is therefore a hidden gating step.
+tasks:
+  - id: bix-45-q1
+    answer_node: a_q1
+    question: p-value of the Mann-Whitney U test comparing RCV between animal and fungal orthologs (PhyKIT rcv).
+    ideal: {type: number, value: 7.6968e-54, sig_figs: 5}
+    label_status: consistent
+  - id: bix-45-q2
+    answer_node: a_q2
+    question: Median RCV for fungal orthologs.
+    ideal: {type: number, value: 0.22, decimals: 2}
+    label_status: consistent
+  - id: bix-45-q5
+    answer_node: a_q5
+    question: Median pairwise difference in RCV (fungi - animals) for matched orthologs.
+    ideal: {type: number, value: 0.12, decimals: 2}
+    label_status: consistent
+  - id: bix-45-q6
+    answer_node: a_q6
+    question: 75th percentile of RCV for fungal orthologs.
+    ideal: {type: number, value: 0.27, decimals: 2}
+    label_status: consistent
+nodes:
+  - id: in_proteomes
+    stage_type: inputs
+    description: Load the eight proteomes (four animals, four fungi) and the BUSCO eukaryota_odb10 lineage dataset.
+    gating: false
+    quantities:
+      - {name: n_proteomes, expected: {type: integer, value: 8}, aliases: [proteomes, n_species], context: ["proteome", "species", "\\.faa"]}
+    provenance: {source: printed, ref: "cell 11 listing"}
+  - id: tf_align
+    stage_type: transform
+    description: For each single-copy BUSCO and lineage, build a multi-FASTA across the lineage's species and align it with MAFFT.
+    depends_on: [in_proteomes]
+    gating: false
+    params: {orthologs: "BUSCO 5.8.0 single-copy, eukaryota_odb10", aligner: "MAFFT --auto"}
+    probe:
+      patterns: ["mafft", "busco", "muscle", "clustal"]
+    provenance: {source: printed, ref: "cells 20-26"}
+  - id: tf_untrimmed
+    stage_type: transform
+    description: Compute RCV on the untrimmed alignments (no ClipKIT trimming), including single-sequence alignments.
+    depends_on: [tf_align]
+    hidden: true
+    params: {alignment: "*.faa.mafft (untrimmed)", n_alignments: {animals: 241, fungi: 255}}
+    probe:
+      patterns: ["\\.mafft(?!\\.clipkit)\\b", "faa\\.mafft['\"\\s]"]
+    provenance: {source: printed, ref: "cell 30 (loops over *mafft)"}
+  - id: r_rcv
+    stage_type: result_table
+    description: RCV of every alignment; one row per gene and lineage.
+    depends_on: [tf_untrimmed]
+    params: {tool: "PhyKIT rcv"}
+    quantities:
+      - {name: n_genes_animals, expected: {type: integer, value: 241}, aliases: [animal_genes, n_animal], context: ["animal"]}
+      - {name: n_genes_fungi, expected: {type: integer, value: 255}, aliases: [fungal_genes, n_fungal], context: ["fung"]}
+      - {name: median_rcv_animals, expected: {type: number, value: 0.1017, abs_tol: 0.0005}, aliases: [animal_median], context: ["animal"]}
+      - {name: median_rcv_fungi, expected: {type: number, value: 0.2212, abs_tol: 0.0005}, aliases: [fungi_median], context: ["median", "fung"]}
+    require: any
+    probe:
+      patterns: ["pk_rcv", "phykit\\s+rcv", "relative_composition_variability", "\\brcv\\b"]
+    provenance: {source: printed, ref: "cell 30 (241 + 255 rows)"}
+  - id: a_q2
+    stage_type: answer
+    description: Median RCV over fungal alignments (0.2212).
+    depends_on: [r_rcv]
+    quantities:
+      - {name: median_rcv_fungi, expected: {type: number, value: 0.2212, decimals: 2}, aliases: [fungi_median], context: ["median", "fung"]}
+    provenance: {source: derived, ref: "cell 30"}
+  - id: a_q6
+    stage_type: answer
+    description: 75th percentile of fungal RCV, linear interpolation (0.2676).
+    depends_on: [r_rcv]
+    quantities:
+      - {name: q75_rcv_fungi, expected: {type: number, value: 0.2676, decimals: 2}, aliases: [p75, q3], context: ["75", "percentile", "quartile"]}
+    provenance: {source: derived, ref: "cell 30"}
+  - id: a_q5
+    stage_type: answer
+    description: Median over the 241 orthologs present in both lineages of fungal minus animal RCV (0.1231; the difference of medians, 0.1195, also rounds to 0.12).
+    depends_on: [r_rcv]
+    quantities:
+      - {name: median_paired_diff, expected: {type: number, value: 0.1231, decimals: 2}, context: ["paired", "differ", "median"]}
+    provenance: {source: derived, ref: "cell 30"}
+  - id: st_mwu
+    stage_type: model
+    description: Two-sided Mann-Whitney U test of RCV, animals vs fungi.
+    depends_on: [r_rcv]
+    probe:
+      patterns: ["mannwhitneyu", "wilcox\\.test", "mann.?whitney", "ranksums"]
+    provenance: {source: printed, ref: "cell 34 (code; output not printed)"}
+  - id: a_q1
+    stage_type: answer
+    description: Mann-Whitney p-value (7.6968e-54; U = 6115 with animals first).
+    depends_on: [st_mwu]
+    quantities:
+      - {name: mwu_p, expected: {type: number, value: 7.69676e-54, sig_figs: 5}, aliases: [p, p_value], context: ["Mann", "MWU", "p-?value"]}
+    provenance: {source: derived, ref: "scipy on cell 30 table; reproduced in evidence/scogs_L5.json (bix-45 rcv on mafft)"}
+  - id: r_rcv_trimmed
+    stage_type: result_table
+    description: RCV computed on the ClipKIT-trimmed alignments instead (fungal median 0.1972, 75th percentile 0.2329, MWU p 1.09e-42).
+    depends_on: [tf_align]
+    variant_of: r_rcv
+    gating: false
+    quantities:
+      - {name: median_rcv_fungi, expected: {type: number, value: 0.1972, abs_tol: 0.0005}, aliases: [fungi_median], context: ["median", "fung"]}
+      - {name: mwu_p, expected: {type: number, value: 1.08845e-42, sig_figs: 3}, aliases: [p, p_value], context: ["Mann", "MWU", "p-?value"]}
+    require: any
+    provenance: {source: rerun, ref: "evidence/scogs_L5.json (bix-45 rcv on mafft.clipkit)"}
