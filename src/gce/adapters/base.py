@@ -38,8 +38,13 @@ class Adapter(ABC):
         self.options = options
 
     @abstractmethod
-    def discover(self, run_root: Path) -> Iterable[RunUnitRef]:
-        """Yield every run unit under `run_root`, in a stable order."""
+    def discover(self, run: Path) -> Iterable[RunUnitRef]:
+        """Yield every run unit of the run directory `run`, in a stable order."""
+
+    def inputs(self, run: Path) -> list[Path]:
+        """Files outside `run` that the adapter reads (e.g. a pack's manifests); adapter-check verifies they are
+        left unchanged too."""
+        return []
 
     @abstractmethod
     def to_trace(self, ref: RunUnitRef) -> dict:

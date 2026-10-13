@@ -40,10 +40,19 @@ def _snapshot(root: Path) -> dict[str, tuple[int, int]]:
     return {str(p): (p.stat().st_size, p.stat().st_mtime_ns) for p in root.rglob("*") if p.is_file()}
 
 
+def _snapshot_inputs(adapter: Adapter, run: Path) -> dict[str, tuple[int, int]]:
+    snap = _snapshot(run)
+    for path in map(Path, adapter.inputs(run)):
+        files = [path] if path.is_file() else [p for p in path.rglob("*") if p.is_file()]
+        snap.update({str(p): (p.stat().st_size, p.stat().st_mtime_ns) for p in files})
+    return snap
+
+
 def check_adapter(adapter: Adapter, run_root: str | Path, graphs: list[Graph] | None = None, sample: int = 5, seed: int = 0) -> CheckReport:
+    """Check `adapter` on one run directory (`run_root`); the run and the adapter's declared inputs must stay unchanged."""
     run_root = Path(run_root)
     report = CheckReport()
-    before = _snapshot(run_root)
+    before = _snapshot_inputs(adapter, run_root)
     known_tasks = {t for g in graphs or [] for t in g.tasks}
 
     refs = list(adapter.discover(run_root))
@@ -110,6 +119,6 @@ def check_adapter(adapter: Adapter, run_root: str | Path, graphs: list[Graph] | 
         # graphs may cover only part of a benchmark; a format mismatch shows up as zero matches overall
         report.warnings.append("none of the checked units cover a task known to the provided graphs "
                                "(fine if the graphs cover other tasks; otherwise check how task ids are read)")
-    if _snapshot(run_root) != before:
-        report.errors.append("the run root changed during the check (adapters must be read-only)")
+    if _snapshot_inputs(adapter, run_root) != before:
+        report.errors.append("the run or the adapter's inputs changed during the check (adapters must be read-only)")
     return report

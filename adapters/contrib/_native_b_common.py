@@ -1,37 +1,27 @@
-"""Adapter for the native diagnostic packs (one Codex pack, one OpenCode pack) of the BixBench native
-executable-code experiment.
+"""Shared code for the native_b controller adapters (`native.py`, `b.py`); not an adapter to load by itself.
 
-Written by following adapters/ADAPTER_PROMPT.md against dasc/1012_test_run/{codex,opencode}_native_diagnostic_*
-(read-only). Both packs share one controller layout; only the agent event format differs, so one adapter
-serves both and their traces have the same structure. Pass one pack directory as the run root.
+Every run of the native_b controller has the same shape, whatever the condition:
 
-Layout:
+    <pack>/                                           a pack (or the controller's source root)
+      PACK_MANIFEST.json                              experiment_id (optional; else derived from the run name)
+      analysis/<run>_generation.json                  manifest (model, agent.cli, ...) and one entry per unit whose
+                                                      `workspace` is the unit's final attempt directory
+      analysis/<run>_manifest_resume_<stamp>.json     resume plans: reused_terminal_units, interrupted_workspaces
+      runs/<run>/                                     THE RUN an adapter is given: <run> = <experiment_id>[_<tag>],
+                                                      tag = <condition>_(rep|seed)<NN>, e.g. native_rep01, b_seed01
+        <slot NNNN>/<unit>/                           one attempt; 0000 first attempt, 0001 retry
+        resume_<stamp>/<slot NNNN>/<unit>/            continuation after the original run halted
 
-    <run_root>/                                   one pack = one experiment (one agent CLI, one model)
-      PACK_MANIFEST.json                          experiment_id, file inventory
-      analysis/<experiment_id>_generation.json    manifest (model, agent.cli, retry policy, ...) and one record
-                                                  per question: the final attempt_index and attempt_history
-      runs/<experiment_id>/
-        <slot NNNN>/                              attempt slot; 0000 = first attempt, 0001 = retry
-          <question_id>/                          one attempt of one question (one agent context)
-            question.json                         question_id, short_id, tag, version
-            run_manifest.json                     controller_status, accepted, return_code, runtime_seconds,
-                                                  failure_reason, policy_violation, relay_failure, event_metrics,
-                                                  code_provenance, soft_warnings, attempt_history, ...
-            event_timeline.json                   [{elapsed_seconds, event}] (events.jsonl holds the same events
-                                                  without elapsed_seconds; not read)
-            question_result.json                  controller-accepted final answer {status, candidates, summary};
-                                                  absent for failed attempts
-            analysis/compliance_audit.json        persisted-source audit (absent for failed attempts)
-            analysis/scripts/*.py                 persisted agent code; analysis/outputs/* agent outputs
-            stderr.log, environment_contract.json, isolation_boundary.json
+    An attempt directory holds run_manifest.json (controller verdict, event_metrics, code_provenance, ...),
+    event_timeline.json ([{elapsed_seconds, event}]; events.jsonl has the same events and is not read), the result
+    file (absent when the attempt failed), analysis/ (compliance_audit.json, scripts/, outputs/), stderr.log,
+    environment_contract.json and isolation_boundary.json. Attempts cut off by a halt have no manifest or events.
 
-    A run unit is one question: the attempt named by the generation record (the highest slot when no record
-    exists). Earlier attempts are summarized in extras.attempts.
-
-Mapping notes:
-    - tasks_covered: question.json question_id (one task per unit). group_id: <tag>-v<version>/<short_id>.
-    - experiment: PACK_MANIFEST experiment_id; condition "native" (the experiment's only condition); seed null;
+Trace mapping shared by all conditions:
+    - run unit: the attempt the generation entry names (the last attempt in stage order without one); every
+      other attempt of the unit is summarized in extras.attempts, noted "interrupted_by_halt" when a resume plan
+      lists it. run_unit_id: <experiment_id>[/<tag>]/<unit key>.
+    - experiment: experiment_id; condition and seed from the tag (the adapter's condition and null without one);
       model: generation manifest model; agent CLI and version in extras.
     - status: controller_status passed -> completed; anything else (failed, interrupted_*) -> failed.
     - steps, Codex events (item.completed only; item.started duplicates them):
@@ -43,10 +33,13 @@ Mapping notes:
         tool_call (state.error as output when the call failed); text -> message;
         controller.policy_violation -> other.
       The final message is left out of steps when it is the JSON final answer. t = elapsed_seconds. Step paths
-      under the attempt workspace (run_manifest.workspace) are made relative to it, as Codex already reports them.
-    - final_answers: question_result.json; without it, the final message if it parses as JSON; else missing.
+      under the attempt workspace (run_manifest.workspace) are made relative to it.
+    - final_answers: the result file; without it, the final message when it carries the answer JSON (bare, in a
+      ```json fence, or as an object ending the message after prose); else missing. extras.final_answer_source
+      says which, and extras.accepted whether the controller accepted the attempt.
     - capabilities: raw_steps from tool outputs; no stage log; replayable_code when runnable persisted sources
-      (code_provenance.runnable_source_files) exist in the attempt directory.
+      (code_provenance.runnable_source_files, or source_files with a .py/.r/.sh suffix when only those are
+      recorded) exist in the attempt directory.
 """
 from __future__ import annotations
 
@@ -63,6 +56,7 @@ MAX_OUTPUT_CHARS = 200_000
 OPENCODE_KIND = {"shell": "exec", "bash": "exec", "write": "file_write", "edit": "file_write", "read": "file_read"}
 STATUS = {"passed": "completed"}
 BASH_WRAPPER = "/usr/bin/bash -lc "
+RUNNABLE_SUFFIXES = (".py", ".r", ".sh")  # native code_acceptance_policy.runnable_suffixes
 
 
 def clip(text: str | None, stats: dict) -> str | None:
@@ -78,7 +72,8 @@ def load(path: Path):
 
 
 def parse_final(text: str) -> dict | None:
-    """Final answer JSON from the agent's last message: plain JSON, or the first fenced ```json block."""
+    """Final answer JSON from the agent's last message: plain JSON, the first fenced ```json block, or a JSON
+    object that starts a line and ends the message (prose followed by the answer object)."""
     stripped = text.strip()
     try:
         doc = json.loads(stripped)
@@ -92,6 +87,13 @@ def parse_final(text: str) -> dict | None:
             return doc if isinstance(doc, dict) else None
         except json.JSONDecodeError:
             pass
+    for start in re.finditer(r"(?m)^\{", stripped):
+        try:
+            doc, end = json.JSONDecoder().raw_decode(stripped, start.start())
+        except json.JSONDecodeError:
+            continue
+        if end == len(stripped) and isinstance(doc, dict):
+            return doc
     return None
 
 
@@ -210,51 +212,131 @@ def message_texts(cli: str, events: list) -> list[tuple[int, str]]:
     return [(i, e["event"]["part"].get("text") or "") for i, e in enumerate(events) if (e["event"].get("part") or {}).get("type") == "text"]
 
 
-def attempt_summary(attempt_dir: Path, root: Path, note: str | None = None) -> dict:
+TAG = re.compile(r"^(?P<condition>[a-z][a-z0-9]*)_(?:rep|seed)(?P<n>\d+)$")
+RUN_NAME = re.compile(r"^(?P<experiment>.+?)_(?P<tag>[a-z][a-z0-9]*_(?:rep|seed)\d+)$")
+
+
+def attempt_summary(attempt_dir: Path, run: Path, result_file: str, note: str | None = None) -> dict:
     m = load(attempt_dir / "run_manifest.json") or {}
-    return {"attempt_index": m.get("attempt_index"), "dir": attempt_dir.relative_to(root).as_posix(), "note": note,
+    return {"attempt_index": m.get("attempt_index"), "dir": attempt_dir.relative_to(run).as_posix(), "note": note,
             "has_run_manifest": bool(m), "has_events": (attempt_dir / "event_timeline.json").is_file(),
             "controller_status": m.get("controller_status"), "return_code": m.get("return_code"),
             "runtime_seconds": m.get("runtime_seconds"), "failure_reason": m.get("failure_reason"),
             "policy_violation": m.get("policy_violation"), "relay_failure": m.get("relay_failure"),
-            "has_question_result": (attempt_dir / "question_result.json").is_file()}
+            "has_result": (attempt_dir / result_file).is_file()}
 
 
-class NativeDiagnosticAdapter(Adapter):
-    name = "native_diagnostic"
+class ControllerRun:
+    """Where one run's files are: the run directory and the pack-level files that describe it."""
 
-    def discover(self, run_root: Path) -> Iterable[RunUnitRef]:
-        run_root = Path(run_root)
-        exp_id = json.loads((run_root / "PACK_MANIFEST.json").read_text(encoding="utf-8"))["experiment_id"]
-        generation = load(run_root / "analysis" / f"{exp_id}_generation.json") or {}
-        final_slot = {r["question_id"]: r.get("attempt_index") for r in generation.get("records") or []}
-        attempts: dict[str, list[Path]] = {}
-        for slot in sorted(p for p in (run_root / "runs" / exp_id).iterdir() if p.is_dir() and p.name.isdigit()):
-            for unit in sorted(p for p in slot.iterdir() if p.is_dir() and (p / "question.json").is_file()):
-                qid = json.loads((unit / "question.json").read_text(encoding="utf-8"))["question_id"]
-                attempts.setdefault(qid, []).append(unit)
-        for qid in sorted(attempts):
-            dirs = attempts[qid]
-            chosen = next((d for d in dirs if final_slot.get(qid) is not None and int(d.parent.name) == final_slot[qid]), dirs[-1])
-            yield RunUnitRef(f"{exp_id}/{qid}", str(chosen), meta={
-                "run_root": str(run_root), "experiment_id": exp_id,
-                "other_attempts": [str(d) for d in dirs if d != chosen]})
+    def __init__(self, run: Path):
+        self.run = Path(run).resolve()
+        if not self.run.is_dir():
+            raise FileNotFoundError(f"{run}: not a directory")
+        self.pack = self.run.parent.parent
+        self.name = self.run.name
+        pack_manifest = load(self.pack / "PACK_MANIFEST.json") or {}
+        exp_id = pack_manifest.get("experiment_id")
+        if exp_id and (self.name == exp_id or self.name.startswith(exp_id + "_")):
+            self.experiment_id, self.tag = exp_id, self.name[len(exp_id) + 1:]
+        elif (m := RUN_NAME.match(self.name)):
+            self.experiment_id, self.tag = m["experiment"], m["tag"]
+        else:
+            self.experiment_id, self.tag = self.name, ""
+        self.generation_path = self.pack / "analysis" / f"{self.name}_generation.json"
+        if not self.generation_path.is_file():
+            raise FileNotFoundError(f"{self.run}: expected the controller's generation file at {self.generation_path} "
+                                    "(pass a run directory <pack>/runs/<run>)")
+        self.generation = load(self.generation_path)
+        self.resume_plans = sorted((self.pack / "analysis").glob(f"{self.name}_manifest_resume_*.json"))
+
+    def inputs(self) -> list[Path]:
+        return [self.generation_path, *self.resume_plans] + [p for p in [self.pack / "PACK_MANIFEST.json"] if p.is_file()]
+
+    def stages(self) -> list[tuple[str, Path]]:
+        return [("initial", self.run)] + [(p.name, p) for p in sorted(self.run.iterdir()) if p.is_dir() and p.name.startswith("resume_")]
+
+
+class ControllerRunAdapter(Adapter):
+    """One run of the native_b controller -> one trace per unit. Subclasses define the unit type."""
+
+    condition = ""            # condition when the run name carries no tag
+    unit_file = ""            # file that marks a unit directory and lists its question(s)
+    result_file = ""          # controller-accepted answer file
+    entries_key = ""          # generation list of units: "records" (questions) or "episodes" (capsules)
+    entry_key = ""            # field of a generation entry naming the unit
+    other_adapter = ""        # adapter to suggest when the run holds the other unit type
+
+    def unit_key(self, unit: Path) -> str | None:
+        raise NotImplementedError
+
+    def questions(self, unit: Path) -> list[dict]:
+        raise NotImplementedError
+
+    def answers(self, doc: dict, tasks: list[str]) -> tuple[dict, list]:
+        """final_answers entries found in an answer document, and results naming no covered task."""
+        raise NotImplementedError
+
+    def unit_extras(self, unit: Path, run_manifest: dict, doc: dict | None) -> dict:
+        return {}
+
+    def inputs(self, run: Path) -> list[Path]:
+        """Files outside the run directory that this adapter reads (covered by adapter-check's read-only check)."""
+        return ControllerRun(run).inputs()
+
+    def discover(self, run: Path) -> Iterable[RunUnitRef]:
+        ctl = ControllerRun(run)
+        entries = ctl.generation.get(self.entries_key)
+        if entries is None:
+            other = "records" if self.entries_key == "episodes" else "episodes"
+            if other in ctl.generation:
+                raise ValueError(f"{ctl.run}: the generation file lists `{other}`, not `{self.entries_key}`; "
+                                 f"this run has the other unit type, use {self.other_adapter}")
+            entries = []
+        final_workspace = {e.get(self.entry_key): e.get("workspace") for e in entries}
+        m = TAG.match(ctl.tag)
+        condition, seed = (m["condition"], int(m["n"])) if m else (ctl.tag or self.condition, None)
+        interrupted: set[str] = set()
+        reused: set[str] = set()
+        for plan_path in ctl.resume_plans:
+            plan = load(plan_path) or {}
+            interrupted |= set(plan.get("interrupted_workspaces") or [])
+            reused |= set(plan.get("reused_terminal_units") or [])
+
+        attempts: dict[str, list[tuple[str, Path]]] = {}
+        for stage, stage_dir in ctl.stages():
+            for slot in sorted(p for p in stage_dir.iterdir() if p.is_dir() and p.name.isdigit()):
+                for unit in sorted(p for p in slot.iterdir() if p.is_dir() and (p / self.unit_file).is_file()):
+                    attempts.setdefault(self.unit_key(unit), []).append((stage, unit))
+
+        def suffix(unit: Path) -> str:
+            return "/" + unit.relative_to(ctl.run.parent).as_posix()
+
+        prefix = f"{ctl.experiment_id}/{ctl.tag}" if ctl.tag else ctl.experiment_id
+        for key in sorted(attempts):
+            found = attempts[key]
+            workspace = final_workspace.get(key) or ""
+            stage, chosen = next(((s, d) for s, d in found if workspace.endswith(suffix(d))), found[-1])
+            others = [{"dir": str(d), "note": "interrupted_by_halt" if any(w.endswith(suffix(d)) for w in interrupted) else None}
+                      for _, d in found if d != chosen]
+            yield RunUnitRef(f"{prefix}/{key}", str(chosen), meta={
+                "run": str(ctl.run), "condition": condition, "seed": seed, "other_attempts": others,
+                "extras": {"run_tag": ctl.tag or None, "stage": stage, "reused_by_resume": key in reused}})
 
     def to_trace(self, ref: RunUnitRef) -> dict:
-        """ref.meta: run_root, experiment_id, other_attempts (dirs, or {dir, note}); optionally generation (path of
-        the generation file relative to run_root), condition, seed, and extras merged into trace extras."""
-        unit, root = Path(ref.location), Path(ref.meta["run_root"])
-        exp_id = ref.meta["experiment_id"]
-        generation = ref.meta.get("generation") or f"analysis/{exp_id}_generation.json"
-        manifest = (load(root / generation) or {}).get("manifest") or {}
+        unit = Path(ref.location)
+        ctl = ControllerRun(ref.meta["run"])
+        manifest = ctl.generation.get("manifest") or {}
         agent = manifest.get("agent") or {}
         cli = agent.get("cli")
-        question = load(unit / "question.json")
+        questions = self.questions(unit)
+        question = questions[0]
         run_manifest = load(unit / "run_manifest.json") or {}
-        tasks = [question["question_id"]]
+        tasks = [q["question_id"] for q in questions]
         controller = run_manifest.get("controller_status")
         trace = empty_trace(
-            ref.id, tasks, experiment=exp_id, condition=ref.meta.get("condition", "native"), seed=ref.meta.get("seed"), model=manifest.get("model"),
+            ref.id, tasks, experiment=ctl.experiment_id, condition=ref.meta["condition"], seed=ref.meta["seed"],
+            model=manifest.get("model"),
             group_id=f"{question.get('tag')}-v{question.get('version')}/{question['short_id']}" if question.get("tag") else None,
             status=STATUS.get(controller, "failed" if controller else "unknown"),
             started_at=None, duration_seconds=run_manifest.get("runtime_seconds"),
@@ -272,21 +354,20 @@ class NativeDiagnosticAdapter(Adapter):
         elif cli == "opencode":
             opencode_steps(trace, events, final_index, stats, extras)
         else:
-            raise ValueError(f"{exp_id}: unsupported agent cli {cli!r}")
+            raise ValueError(f"{ctl.run}: unsupported agent cli {cli!r}")
 
-        result = load(unit / "question_result.json")
-        if isinstance(result, dict):
-            trace["final_answers"][tasks[0]] = answer_entry(result)
-            source = "question_result.json"
-        elif final_msg is not None:
-            trace["final_answers"][tasks[0]] = answer_entry(final_msg)
-            source = "final_message"
-        else:
-            trace["final_answers"][tasks[0]] = {"status": "missing"}
-            source = None
+        result = load(unit / self.result_file)
+        doc, source = (result, self.result_file) if isinstance(result, dict) else (final_msg, "final_message" if final_msg is not None else None)
+        found, foreign = self.answers(doc, tasks) if doc is not None else ({}, [])
+        trace["final_answers"].update(found)
+        for task in tasks:
+            trace["final_answers"].setdefault(task, {"status": "missing"})
 
         provenance = run_manifest.get("code_provenance") or {}
-        runnable = [p for p in provenance.get("runnable_source_files") or [] if (unit / p).is_file()]
+        # condition b records only source_files: keep those with the native policy's runnable suffixes
+        declared = provenance.get("runnable_source_files") or [f["path"] for f in provenance.get("source_files") or []
+                                                                if Path(f["path"]).suffix.lower() in RUNNABLE_SUFFIXES]
+        runnable = [p for p in declared if (unit / p).is_file()]
         trace["capabilities"] = {"raw_steps": any(s.get("output") for s in trace["steps"] if s["kind"] in ("exec", "tool_call", "file_read")),
                                  "stage_log": False, "replayable_code": bool(runnable)}
         metrics = run_manifest.get("event_metrics") or {}
@@ -296,10 +377,9 @@ class NativeDiagnosticAdapter(Adapter):
             "agent_cli": cli,
             "agent_cli_version": agent.get("cli_version") or agent.get("cli_major_version"),
             "reasoning_effort": manifest.get("reasoning_effort"),
-            "attempt_dir": unit.relative_to(root).as_posix(),
+            "attempt_dir": unit.relative_to(ctl.run).as_posix(),
             "attempt_index": run_manifest.get("attempt_index"),
-            "attempts": [attempt_summary(Path(d), root) if isinstance(d, str) else attempt_summary(Path(d["dir"]), root, d.get("note"))
-                         for d in ref.meta.get("other_attempts") or []],
+            "attempts": [attempt_summary(Path(d["dir"]), ctl.run, self.result_file, d.get("note")) for d in ref.meta.get("other_attempts") or []],
             "retry_reason": run_manifest.get("retry_reason"),
             "controller_status": controller,
             "accepted": run_manifest.get("accepted"),
@@ -319,6 +399,7 @@ class NativeDiagnosticAdapter(Adapter):
             "final_answer_source": source,
             "final_text_head": None if source or not texts else texts[-1][1][:500],
             "stderr": clip(stderr, stats) if stderr and stderr.strip() else None,
+            **self.unit_extras(unit, run_manifest, doc),
             **extras,
             **ref.meta.get("extras", {}),
             **stats,

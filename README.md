@@ -55,10 +55,25 @@ tests/               unit and golden tests
 ```bash
 uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce validate checkpoints/bixbench-v1.5/*.yaml
-.venv/bin/gce adapt --adapter canonical_dir --run-root path/to/runs --out out/traces
+.venv/bin/gce adapt --adapter canonical_dir --run path/to/run --out out/traces
 .venv/bin/gce score --graphs checkpoints/bixbench-v1.5 --traces out/traces --out out/eval
 .venv/bin/gce report --evals out/eval --graphs checkpoints/bixbench-v1.5 --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
+
+`gce adapt` and `gce adapter-check` take the path of one exact run (`--run`; `--run-root` is the
+old name). Runs of the native_b controller have one adapter per run type:
+
+```bash
+PACK=../opencode_deepseek_20261012T065851Z_2938483_2
+.venv/bin/gce adapt --adapter adapters/contrib/native.py \
+    --run $PACK/runs/opencode_deepseek_20261012T065851Z_2938483_native_rep01 --out out/traces/native_rep01
+.venv/bin/gce adapt --adapter adapters/contrib/b.py \
+    --run $PACK/runs/opencode_deepseek_20261012T065851Z_2938483_b_seed01 --out out/traces/b_seed01
+```
+
+`native.py` makes one trace per question; `b.py` one trace per capsule covering all of its questions. Each
+adapter reads the pack's `analysis/<run>_generation.json` (and resume plans) next to the run; giving it a
+run of the other type, or a pack instead of a run, fails with a message saying so.
 
 `gce report` also writes `paths/<condition>/<group>.md`, one file per running condition and task group
 (e.g. `paths/native/bix-10.md` and `paths/b/bix-10.md`; conditions are never pooled), which

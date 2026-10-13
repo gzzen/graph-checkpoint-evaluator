@@ -3,7 +3,8 @@
 Copy everything below the line into an LLM coding tool (Claude Code, Codex, OpenCode, ...) that is
 running inside a checkout of `graph-checkpoint-evaluator`. Fill in the three placeholders first.
 
-- `{{RUN_ROOT}}`: absolute path of the run directory to support.
+- `{{RUN}}`: absolute path of the exact run to support: one run directory, e.g.
+  `<pack>/runs/<experiment>_<tag>`, not the pack or a folder of several runs.
 - `{{ADAPTER_NAME}}`: snake_case name for the adapter, e.g. `opencode_native_vs_b`.
 - `{{NOTES}}`: anything you already know about the layout (experiment design, what a unit is), or "none".
 
@@ -11,14 +12,16 @@ running inside a checkout of `graph-checkpoint-evaluator`. Fill in the three pla
 
 You are writing an **adapter** for graph-checkpoint-evaluator (`gce`). The evaluator scores agent runs
 against checkpoint graphs, but it only reads normalized **traces** (schema `gce.trace.v1`). Your job
-is to convert the run directory at `{{RUN_ROOT}}` into traces, by writing one Python file:
+is to convert the run at `{{RUN}}` into traces, by writing one Python file:
 `adapters/contrib/{{ADAPTER_NAME}}.py`.
 
 Known context: {{NOTES}}
 
 ## Hard rules
-1. **Read-only.** Never create, modify, move or delete anything under `{{RUN_ROOT}}`. Inspect it with
-   listing and reading commands only. `gce adapter-check` fails if the run root changes.
+1. **Read-only.** Never create, modify, move or delete anything under `{{RUN}}`, or anything the adapter
+   reads next to it (a pack's manifests, for example). Inspect with listing and reading commands only.
+   Files outside the run that the adapter reads must be returned by `inputs(run)`; `gce adapter-check`
+   fails if the run or those inputs change.
 2. **Deterministic.** The same input must give byte-identical traces: stable unit order and ids,
    no wall-clock values, no randomness, no dependence on dict ordering of unsorted directory listings.
 3. **No guessing.** Map only what the files actually say.
@@ -33,7 +36,7 @@ Known context: {{NOTES}}
 
 ## What to produce
 Start from `adapters/TEMPLATE.py`. Subclass `gce.adapters.base.Adapter` and implement:
-- `discover(run_root) -> Iterable[RunUnitRef]`: every **run unit** (one agent context; it may cover
+- `discover(run) -> Iterable[RunUnitRef]`: every **run unit** (one agent context; it may cover
   one task or many), sorted by a stable key. `RunUnitRef.id` must be unique and stable; it becomes
   `run.run_unit_id`. Make it informative, e.g. `<experiment>/<condition>/<seed>/<unit>`.
 - `to_trace(ref) -> dict`: one `gce.trace.v1` document.
@@ -64,11 +67,14 @@ Layout variations you must handle explicitly if they occur:
 - **Very large outputs:** keep step outputs up to 200,000 characters each. Beyond that, keep the head
   and tail and insert `\n[... N characters truncated by adapter ...]\n`, and count truncations in
   `extras.truncated_outputs`.
-- **Several condition layouts in one root** (e.g. a baseline and a variant with extra files): support
-  all of them in one adapter, and set `run.condition` accordingly.
+- **One run type per adapter:** a run whose units differ in kind from another run's (e.g. one question
+  per session vs one capsule per session) gets its own adapter; shared mapping code may live in a helper
+  module next to them. An adapter given a run of the other type, or a folder that is not a run, must stop
+  with a message that says so instead of yielding nothing. Set `run.condition` from the run's files
+  (e.g. its tag).
 
 ## Procedure
-1. Explore `{{RUN_ROOT}}` read-only. Use `find`/`ls` with depth limits to see the tree, and open a
+1. Explore `{{RUN}}` (and the files next to it that describe it) read-only. Use `find`/`ls` with depth limits to see the tree, and open a
    few files of each kind (head only for large files). Identify the unit boundary, where the task ids
    live, the event or step log format, the final-answer format, and any persisted code.
    **Before writing code, write a short layout description as the module docstring.**
@@ -78,11 +84,11 @@ Layout variations you must handle explicitly if they occur:
 4. Run the conformance check and iterate until it passes with no errors:
    ```bash
    .venv/bin/gce adapter-check --adapter adapters/contrib/{{ADAPTER_NAME}}.py \
-       --run-root {{RUN_ROOT}} --sample 12 [--graphs checkpoints/<benchmark>]
+       --run {{RUN}} --sample 12 [--graphs checkpoints/<benchmark>]
    ```
    Then convert everything and confirm that no traces are invalid:
    ```bash
-   .venv/bin/gce adapt --adapter adapters/contrib/{{ADAPTER_NAME}}.py --run-root {{RUN_ROOT}} --out out/traces/{{ADAPTER_NAME}}
+   .venv/bin/gce adapt --adapter adapters/contrib/{{ADAPTER_NAME}}.py --run {{RUN}} --out out/traces/{{ADAPTER_NAME}}
    ```
 5. Open two of the produced traces, one completed and one failed, and verify by eye:
    - the steps are in the right order;
@@ -98,4 +104,4 @@ Layout variations you must handle explicitly if they occur:
 ## Definition of done
 - `adapters/contrib/{{ADAPTER_NAME}}.py` exists, with a docstring describing the layout.
 - `gce adapter-check` passes, and `gce adapt` writes zero invalid traces.
-- `{{RUN_ROOT}}` is unchanged.
+- `{{RUN}}` and the adapter's `inputs(run)` are unchanged.

@@ -1,7 +1,7 @@
 # Canonical run layout (`canonical_dir` adapter)
 
 Experiments that write this layout need no custom adapter: run
-`gce adapt --adapter canonical_dir --run-root <root> --out <traces>`.
+`gce adapt --adapter canonical_dir --run <root> --out <traces>`.
 
 A run unit is any directory, at any depth under the run root, that contains `trace.json` or
 `meta.json`.
@@ -33,4 +33,4 @@ Rules:
    it at `<unit>/stage_log.jsonl` (or a path you copy there afterwards).
 2. After the run, write `meta.json` and `answers.json`, and, if the harness captures tool events,
    `steps.jsonl`.
-3. Validate with `gce adapter-check --adapter canonical_dir --run-root <root>`.
+3. Validate with `gce adapter-check --adapter canonical_dir --run <root>`.

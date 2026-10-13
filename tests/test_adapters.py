@@ -85,5 +85,44 @@ def test_template_adapter_loads_from_file():
 
 def test_cli_adapt_writes_traces(run_root, tmp_path, capsys):
     out = tmp_path / "traces"
-    assert main(["adapt", "--adapter", "canonical_dir", "--run-root", str(run_root), "--out", str(out)]) == 0
+    assert main(["adapt", "--adapter", "canonical_dir", "--run", str(run_root), "--out", str(out)]) == 0
     assert sorted(p.name for p in out.iterdir()) == ["demo__group__seed1.trace.json", "exp__u1.trace.json"]
+
+
+def test_cli_accepts_old_run_root_flag(run_root, tmp_path):
+    assert main(["adapt", "--adapter", "canonical_dir", "--run-root", str(run_root), "--out", str(tmp_path / "t")]) == 0
+
+
+class InputWritingAdapter(Adapter):
+    """Reads a file outside the run (declared in inputs) and, on purpose, modifies it."""
+
+    def __init__(self, outside: Path):
+        super().__init__()
+        self.outside = outside
+
+    def inputs(self, run):
+        return [self.outside]
+
+    def discover(self, run):
+        yield RunUnitRef("x", str(run))
+
+    def to_trace(self, ref):
+        self.outside.write_text(self.outside.read_text() + "x")
+        doc = load_doc(FIX / "trace_single_good.json")
+        doc["run"]["run_unit_id"] = "x"
+        return doc
+
+
+def test_adapter_check_covers_declared_inputs(tmp_path):
+    run = tmp_path / "pack" / "runs" / "r1"
+    run.mkdir(parents=True)
+    outside = tmp_path / "pack" / "analysis.json"
+    outside.write_text("{}")
+    report = check_adapter(InputWritingAdapter(outside), run)
+    assert any("read-only" in e for e in report.errors)
+
+
+def test_cli_reports_adapter_input_errors(tmp_path, capsys):
+    adapter = REPO / "adapters" / "contrib" / "native.py"
+    assert main(["adapt", "--adapter", str(adapter), "--run", str(tmp_path), "--out", str(tmp_path / "t")]) == 2
+    assert "generation file" in capsys.readouterr().err
