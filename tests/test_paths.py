@@ -18,11 +18,15 @@ def evals_and_graph():
 def test_one_document_per_group_with_a_view_per_task():
     evals, graph = evals_and_graph()
     docs = group_documents(evals, [graph])
-    assert sorted(docs) == [("group", "demo/two-sample"), ("single", "demo/two-sample")]  # conditions never pooled
-    group = docs[("group", "demo/two-sample")]
+    # conditions and repeated attempts (seeds) are never pooled
+    assert sorted(docs) == [("group_seed01", "demo/two-sample"), ("single_seed01", "demo/two-sample"), ("single_seed02", "demo/two-sample")]
+    group = docs[("group_seed01", "demo/two-sample")]
     assert group.count("```mermaid") == 3 and "## demo-q1" in group and "## demo-q2" in group  # full graph + 2 tasks
-    single = docs[("single", "demo/two-sample")]
-    assert "## demo-q2" not in single and "seed 1" in single and "seed 2" in single
+    assert "condition group, seed 1" in group and "| Capsule run |" in group
+    single = docs[("single_seed01", "demo/two-sample")]
+    wrong = docs[("single_seed02", "demo/two-sample")]
+    assert "## demo-q2" not in single and "condition single, seed 1" in single and "seed 2" not in single
+    assert "| Single-question run |" in single
     assert single.index("## Full checkpoint graph") < single.index("## demo-q1")
     full = single.split("## Full checkpoint graph")[1].split("## demo-q1")[0]
     assert "n_cohort_all" in full and "Not evaluated" in full     # whole graph, incl. q2-only nodes
@@ -33,9 +37,10 @@ def test_one_document_per_group_with_a_view_per_task():
     assert "| n_cohort | Exclude the two outlier samples" in q1 and "(a reference choice the question does not state)" in q1
     assert "| n_load | Load the measurement table. | All questions |" in q1
     assert "| a_q1 | The value this question asks for:" in q1
-    text = group + single
-    q1 = single.split("## demo-q1")[1]
+    text = group + single + wrong
+    q1 = wrong.split("## demo-q1")[1]
     assert "**Fail: 100** (first failure)" in q1          # wrong run stops at the hidden cohort step
+    assert "**Fail: 100**" not in single
     assert "n_n_cohort --> n_n_test" in q1               # graph edges
     assert "Official answer: 0.013" in q1
     assert not any(sym in text for sym in "✓✗▶⧉↑⊘")       # formal wording only
@@ -44,16 +49,22 @@ def test_one_document_per_group_with_a_view_per_task():
 def test_report_writes_group_files(tmp_path):
     evals, graph = evals_and_graph()
     out = write_report(evals, tmp_path / "report", [graph])
-    assert (out / "paths" / "single" / "two-sample.md").is_file()
-    assert (out / "paths" / "group" / "two-sample.md").is_file()
+    for attempt in ("single_seed01", "single_seed02", "group_seed01"):
+        assert (out / "paths" / attempt / "two-sample.md").is_file()
+    assert not (out / "paths" / "single").exists()
     summary = (out / "summary.md").read_text()
-    assert "(paths/single/two-sample.md)" in summary and "(paths/group/two-sample.md)" in summary
+    assert "(paths/single_seed01/two-sample.md)" in summary and "(paths/single_seed02/two-sample.md)" in summary
+    by_attempt = summary.split("## By attempt")[1].split("##")[0]
+    assert "| demo/single/seed01 | 1 |" in by_attempt and "| demo/single/seed02 | 1 |" in by_attempt
 
 
-def test_condition_dirs_disambiguate_shared_condition_names():
-    from gce.paths import condition_dirs
-    evals = [{"run": {"experiment": e, "condition": c}} for e, c in [("exp1", "native"), ("exp2", "native"), ("exp1", "b")]]
-    assert condition_dirs(evals) == {("exp1", "b"): "b", ("exp1", "native"): "exp1__native", ("exp2", "native"): "exp2__native"}
+def test_attempt_dirs_keep_seeds_apart_and_disambiguate_experiments():
+    from gce.paths import attempt_dirs
+    runs = [("exp1", "native", 1), ("exp2", "native", 1), ("exp1", "b", 1), ("exp1", "b", 2), ("exp1", "x", None)]
+    evals = [{"run": {"experiment": e, "condition": c, "seed": s}} for e, c, s in runs]
+    assert attempt_dirs(evals) == {("exp1", "b", "seed01"): "b_seed01", ("exp1", "b", "seed02"): "b_seed02",
+                                   ("exp1", "native", "seed01"): "exp1__native_seed01", ("exp2", "native", "seed01"): "exp2__native_seed01",
+                                   ("exp1", "x", ""): "x"}
 
 
 def test_names_and_specs():

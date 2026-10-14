@@ -60,10 +60,11 @@ uv venv -p 3.12 .venv && uv pip install -e '.[dev]'
 .venv/bin/gce report --evals out/eval --graphs checkpoints/bixbench-v1.5 --out out/report   # summary.md, tasks.csv, nodes.csv
 ```
 
-`gce report` also writes `paths/<condition>/<group>.md`, one file per running condition and task group
-(e.g. `paths/native/bix-10.md` and `paths/b/bix-10.md`; conditions are never pooled), which
+`gce report` also writes `paths/<condition>_<seed>/<group>.md`, one file per attempt (running condition
+and seed) and task group (e.g. `paths/native_seed01/bix-10.md`, `paths/b_seed01/bix-10.md` and
+`paths/b_seed02/bix-10.md`; conditions and repeated attempts are never pooled), which
 `summary.md` links to. Each file opens with the full checkpoint graph of the group (all checkpoints and
-edges, coloured by that condition's outcomes, plus a table of every checkpoint and the questions that
+edges, coloured by that attempt's outcomes, plus a table of every checkpoint and the questions that
 use it), after a short guide to the checkpoint-ID prefixes (`in_` inputs, `co_` cohort, `r_` result,
 `a_qN` answer to question N, ...). Then, for every question, it shows a table of what each checkpoint on
 its path represents for that question (and which other questions share it), followed by:

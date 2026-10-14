@@ -1,5 +1,5 @@
-"""Per-question path views for reports, written as one Markdown document per task group (e.g. per
-BixBench capsule): how far each run progressed along each task's checkpoint path, and what it produced
+"""Per-question path views for reports, written as one Markdown document per attempt (condition and
+seed) and task group (e.g. per BixBench capsule): how far each run progressed along each task's checkpoint path, and what it produced
 at every checkpoint.
 
 For every task the document contains
@@ -85,14 +85,17 @@ def _expected(graph: Graph | None, node_id: str) -> str:
     return joiner.join(parts) + ("; ..." if len(node.quantities) > 2 else "")
 
 
-def _run_label(doc: dict) -> str:
-    """Column label within one condition's document: the seed (or unit id) and whether it is a capsule run."""
-    run = doc["run"]
-    parts = []
-    if run.get("seed") is not None:
-        parts.append(f"seed {run['seed']}")
-    label = ", ".join(parts) or run["run_unit_id"].split("/")[-1]
-    return label + (" (capsule run)" if len(run.get("tasks_covered", [])) > 1 else "")
+def _run_labels(runs: list[dict]) -> list[str]:
+    """Column labels within one attempt's document: the kind of run, plus the run unit when several
+    run units of the attempt answered the same task (e.g. a retried unit)."""
+    labels = []
+    for doc in runs:
+        run = doc["run"]
+        label = "Capsule run" if len(run.get("tasks_covered") or doc["tasks"]) > 1 else "Single-question run"
+        if len(runs) > 1:
+            label += f" ({run['run_unit_id'].split('/')[-1]})"
+        labels.append(label)
+    return labels
 
 
 def _cell(node: dict | None, stop: str | None) -> str:
@@ -226,7 +229,7 @@ def path_explanation(task: str, path: list[str], graph: Graph) -> list[str]:
 
 
 def full_graph(graph: Graph, runs: list[dict]) -> list[str]:
-    """Mermaid diagram of the whole task group's graph, coloured by this condition's outcomes, followed
+    """Mermaid diagram of the whole task group's graph, coloured by this attempt's outcomes, followed
     by a table describing every checkpoint and the questions whose path uses it."""
     states_by_node: dict[str, Counter] = defaultdict(Counter)
     for doc in runs:
@@ -264,7 +267,7 @@ def full_graph(graph: Graph, runs: list[dict]) -> list[str]:
 
 
 def task_table(task: str, path: list[str], runs: list[dict], graph: Graph | None) -> list[str]:
-    headers = ["Checkpoint", "Stage", "Hidden decision", "Gating", "Expected", *[_run_label(r) for r in runs]]
+    headers = ["Checkpoint", "Stage", "Hidden decision", "Gating", "Expected", *_run_labels(runs)]
     lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
     stops = []
     for r in runs:
@@ -297,38 +300,59 @@ def _task_order(task: str) -> tuple:
     return tuple(int(n) for n in re.findall(r"\d+", task)), task
 
 
-def condition_key(doc: dict) -> tuple[str, str]:
+def seed_text(seed: Any) -> str:
+    """'seed01' for an integer seed, the seed as given otherwise, '' when there is none."""
+    if seed is None or seed == "":
+        return ""
+    return f"seed{seed:02d}" if isinstance(seed, int) else f"seed{seed}"
+
+
+def attempt_key(doc: dict) -> tuple[str, str, str]:
+    """One attempt of a running condition: (experiment, condition, seed). Attempts are never pooled."""
     run = doc["run"]
-    return str(run.get("experiment") or ""), str(run.get("condition") or "unlabelled")
+    return str(run.get("experiment") or ""), str(run.get("condition") or "unlabelled"), seed_text(run.get("seed"))
 
 
-def condition_dirs(evals: list[dict]) -> dict[tuple[str, str], str]:
-    """Directory name per (experiment, condition): the condition alone, unless two experiments share it."""
-    keys = sorted({condition_key(d) for d in evals})
-    clash = Counter(cond for _, cond in keys)
+def attempt_label(doc: dict) -> str:
+    """Human-readable attempt name, e.g. native_vs_b/deepseek_full_.../b/seed01."""
+    return "/".join(x for x in attempt_key(doc) if x)
+
+
+def attempt_dirs(evals: list[dict]) -> dict[tuple[str, str, str], str]:
+    """Directory name per attempt: condition and seed (e.g. b_seed01), prefixed by the experiment only
+    when two experiments share that condition and seed."""
+    keys = sorted({attempt_key(d) for d in evals})
+    clash = Counter((cond, seed) for _, cond, seed in keys)
     safe = lambda text: re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("_") or "unlabelled"
-    return {(exp, cond): safe(cond if clash[cond] == 1 or not exp else f"{exp}__{cond}") for exp, cond in keys}
+    dirs = {}
+    for exp, cond, seed in keys:
+        name = "_".join(x for x in (cond, seed) if x)
+        dirs[(exp, cond, seed)] = safe(name if clash[(cond, seed)] == 1 or not exp else f"{exp}__{name}")
+    return dirs
 
 
 def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dict[tuple[str, str], str]:
-    """(condition directory, group_id) -> Markdown document with the path views of every task of that
-    group, computed from that condition's runs only, so running conditions are never pooled."""
+    """(attempt directory, group_id) -> Markdown document with the path views of every task of that
+    group, computed from one attempt's runs only (one condition, one seed), so conditions and repeated
+    attempts are never pooled."""
     graph_by_group = {g.group_id: g for g in graphs or []}
-    dirs = condition_dirs(evals)
+    dirs = attempt_dirs(evals)
     by_key: dict[tuple[str, str], dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for doc in evals:
         for task in doc["tasks"]:
-            by_key[(dirs[condition_key(doc)], doc["group_id"])][task].append(doc)
+            by_key[(dirs[attempt_key(doc)], doc["group_id"])][task].append(doc)
     documents = {}
     for (cond_dir, group_id), tasks in sorted(by_key.items()):
         graph = graph_by_group.get(group_id)
         sample = next(iter(tasks.values()))[0]["run"]
         title = graph.raw.get("title") if graph else None
-        lines = [f"# Checkpoint paths: {group_id}, condition {sample.get('condition') or 'unlabelled'}", ""]
+        seed = f", seed {sample['seed']}" if sample.get("seed") is not None else ""
+        lines = [f"# Checkpoint paths: {group_id}, condition {sample.get('condition') or 'unlabelled'}{seed}", ""]
         if title:
             lines += [f"{title}.", ""]
         lines += [f"Experiment: {sample.get('experiment') or 'unlabelled'}. Condition: {sample.get('condition') or 'unlabelled'}. "
-                  "Only runs of this condition are included.", ""]
+                  f"Seed: {sample.get('seed') if sample.get('seed') is not None else 'unlabelled'}. "
+                  "Only runs of this attempt (this condition and seed) are included.", ""]
         if graph:
             lines += naming_section(graph)
         lines += ["## Definitions", "", "| Term | Meaning |", "|---|---|"]
@@ -337,7 +361,7 @@ def group_documents(evals: list[dict], graphs: list[Graph] | None = None) -> dic
             unit_runs = list({d["run"]["run_unit_id"]: d for docs in tasks.values() for d in docs}.values())
             lines += ["## Full checkpoint graph", "",
                       f"All checkpoints of {group_id} and their dependencies. Counts are outcomes over the "
-                      f"{len(unit_runs)} run(s) of this condition that evaluated each checkpoint.", ""]
+                      f"{len(unit_runs)} run(s) of this attempt that evaluated each checkpoint.", ""]
             lines += full_graph(graph, unit_runs) + [""]
         for task in sorted(tasks, key=_task_order):
             runs = sorted(tasks[task], key=lambda d: (str(d["run"].get("seed")), d["run"]["run_unit_id"]))

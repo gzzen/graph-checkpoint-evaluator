@@ -9,7 +9,7 @@ from statistics import mean
 from typing import Any
 
 from .io import load_doc
-from .paths import document_name, group_documents
+from .paths import attempt_label, document_name, group_documents
 
 TASK_FIELDS = [
     "experiment", "condition", "seed", "run_unit_id", "group_id", "unit_tasks", "task", "answer_status",
@@ -94,16 +94,18 @@ def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
     rows = task_rows(evals)
     lines = ["# Checkpoint evaluation summary", "", f"{len(evals)} run-unit evaluations, {len(rows)} task results.", ""]
 
+    # one row per attempt (experiment, condition, seed): repeated attempts of a condition are kept apart
+    attempt_of = {d["run"]["run_unit_id"]: attempt_label(d) for d in evals}
     by_cond: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
-        by_cond["/".join(str(x) for x in (r["experiment"], r["condition"]) if x) or "(unlabelled)"].append(r)
-    lines += ["## By condition", ""]
+        by_cond[attempt_of[r["run_unit_id"]]].append(r)
+    lines += ["## By attempt (condition and seed)", ""]
     table = []
     for cond, rs in sorted(by_cond.items()):
         answered = [r for r in rs if r["answer_correct"] is not None]
         table.append([cond, len(rs), float(mean(r["answer_correct"] is True for r in answered)) if answered else None,
                       mean(r["depth_fraction"] for r in rs), sum(1 for r in rs if r["hidden_misses"])])
-    lines += _table(["condition", "tasks", "answer accuracy", "mean depth fraction", "tasks with hidden misses"], table) + [""]
+    lines += _table(["attempt", "tasks", "answer accuracy", "mean depth fraction", "tasks with hidden misses"], table) + [""]
 
     lines += ["## Where runs first went wrong (first_failure stage, else first_gap stage)", ""]
     stages = sorted({r["first_failure_stage"] or r["first_gap_stage"] or "none" for r in rows})
@@ -111,18 +113,18 @@ def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
     for cond, rs in sorted(by_cond.items()):
         counts = Counter(r["first_failure_stage"] or (f"gap:{r['first_gap_stage']}" if r["first_gap_stage"] else "none") for r in rs)
         table.append([cond, *[counts.get(s, 0) + counts.get(f"gap:{s}", 0) for s in stages]])
-    lines += _table(["condition", *stages], table) + [""]
+    lines += _table(["attempt", *stages], table) + [""]
 
     lines += ["## Per task", ""]
     by_task: dict[tuple, list[dict]] = defaultdict(list)
     for r in rows:
-        by_task[(r["task"], "/".join(str(x) for x in (r["experiment"], r["condition"]) if x))].append(r)
+        by_task[(r["task"], attempt_of[r["run_unit_id"]])].append(r)
     table = []
     for (task, cond), rs in sorted(by_task.items()):
         ff = Counter(r["first_failure"] for r in rs if r["first_failure"])
         table.append([task, cond, len(rs), float(mean(r["answer_correct"] is True for r in rs)), mean(r["depth_fraction"] for r in rs),
                       ", ".join(f"{k} ({v})" for k, v in ff.most_common(3)) or "None"])
-    lines += _table(["task", "condition", "runs", "accuracy", "mean depth fraction", "first failures"], table) + [""]
+    lines += _table(["task", "attempt", "runs", "accuracy", "mean depth fraction", "first failures"], table) + [""]
 
     multi = [d for d in evals if d.get("group_metrics")]
     if multi:
@@ -136,17 +138,17 @@ def summary_markdown(evals: list[dict], graphs: list | None = None) -> str:
 
     variance = [v for v in shared_node_variance(evals) if v["units"] > 1 and (len(v["states"]) > 1 or v["distinct_observed"] > 1)]
     if variance:
-        lines += ["## Checkpoints that vary across run units of the same condition", ""]
+        lines += ["## Checkpoints that vary across run units of the same condition (compared across seeds)", ""]
         lines += _table(["condition", "group", "node", "units", "states", "distinct observed"],
                         [[v["condition"], v["group_id"], v["node"], v["units"], json.dumps(v["states"]), v["distinct_observed"]] for v in variance]) + [""]
     lines += ["## Checkpoint paths per question", "",
-              "Diagrams and per-run tables for every question, one file per running condition and task group:", ""]
+              "Diagrams and per-run tables for every question, one file per attempt (condition and seed) and task group:", ""]
     files: dict[str, list[str]] = defaultdict(list)
     for cond_dir, group_id in group_documents(evals, graphs):
         files[cond_dir].append(document_name(group_id))
     for cond_dir, names in sorted(files.items()):
         links = ", ".join(f"[{name[:-3]}](paths/{cond_dir}/{name})" for name in sorted(names))
-        lines.append(f"- Condition {cond_dir}: {links}")
+        lines.append(f"- {cond_dir}: {links}")
     lines.append("")
     return "\n".join(lines)
 
