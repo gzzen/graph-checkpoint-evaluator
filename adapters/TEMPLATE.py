@@ -2,7 +2,7 @@
 
 Layout (fill in before writing code):
 
-    <run_root>/
+    <run>/                   the exact run given to `gce adapt --run`
       <...>/<unit>/            one run unit = <what a unit is>
         <file>                 <what it contains and which trace fields it feeds>
 
@@ -35,11 +35,14 @@ def clip(text: str | None, stats: dict) -> str | None:
 class TemplateAdapter(Adapter):
     name = "template"
 
-    def discover(self, run_root: Path) -> Iterable[RunUnitRef]:
-        run_root = Path(run_root)
-        units = sorted(p for p in run_root.glob("*/*") if p.is_dir())  # TODO: real unit boundary
+    def inputs(self, run: Path) -> list[Path]:
+        return []  # TODO: files outside `run` that this adapter reads (e.g. the pack's manifests)
+
+    def discover(self, run: Path) -> Iterable[RunUnitRef]:
+        run = Path(run)
+        units = sorted(p for p in run.glob("*/*") if p.is_dir())  # TODO: real unit boundary
         for unit in units:
-            yield RunUnitRef(id=unit.relative_to(run_root).as_posix(), location=str(unit))
+            yield RunUnitRef(id=unit.relative_to(run).as_posix(), location=str(unit))
 
     def to_trace(self, ref: RunUnitRef) -> dict:
         unit = Path(ref.location)

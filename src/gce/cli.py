@@ -64,7 +64,12 @@ def cmd_adapt(args: argparse.Namespace) -> int:
     adapter = load_adapter(args.adapter, **parse_options(args.option))
     out = Path(args.out)
     written, invalid = 0, 0
-    for ref in adapter.discover(Path(args.run_root)):
+    try:
+        refs = list(adapter.discover(Path(args.run)))
+    except (FileNotFoundError, ValueError) as exc:  # wrong path or wrong run type for this adapter
+        print(f"gce adapt: {exc}", file=sys.stderr)
+        return 2
+    for ref in refs:
         doc = adapter.to_trace(ref)
         errors = schema_errors(doc, "trace")
         if errors:
@@ -84,7 +89,11 @@ def cmd_adapter_check(args: argparse.Namespace) -> int:
 
     adapter = load_adapter(args.adapter, **parse_options(args.option))
     graphs = load_graphs(args.graphs) if args.graphs else None
-    report = check_adapter(adapter, args.run_root, graphs=graphs, sample=args.sample, seed=args.seed)
+    try:
+        report = check_adapter(adapter, args.run, graphs=graphs, sample=args.sample, seed=args.seed)
+    except (FileNotFoundError, ValueError) as exc:  # wrong path or wrong run type for this adapter
+        print(f"gce adapter-check: {exc}", file=sys.stderr)
+        return 2
     print(report.render())
     return 0 if report.ok else 1
 
@@ -150,16 +159,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     def adapter_args(p: argparse.ArgumentParser) -> None:
         p.add_argument("--adapter", required=True, help="registry name, module:Class, or path/to/adapter.py[:Class]")
-        p.add_argument("--run-root", required=True, help="run directory to read (never modified)")
+        p.add_argument("--run", "--run-root", dest="run", required=True,
+                       help="path of the exact run to read, e.g. <pack>/runs/<experiment>_<tag> (never modified); "
+                            "--run-root is the old name")
         p.add_argument("--option", action="append", metavar="KEY=VALUE", help="adapter option (JSON values allowed)")
 
-    p = sub.add_parser("adapt", help="convert a run directory into trace.v1 files")
+    p = sub.add_parser("adapt", help="convert one run into trace.v1 files")
     adapter_args(p)
     p.add_argument("--out", required=True, help="output directory for <run_unit_id>.trace.json")
     p.add_argument("--keep-invalid", action="store_true", help="also write traces that fail schema validation")
     p.set_defaults(func=cmd_adapt)
 
-    p = sub.add_parser("adapter-check", help="conformance check of an adapter on a run directory")
+    p = sub.add_parser("adapter-check", help="conformance check of an adapter on one run")
     adapter_args(p)
     p.add_argument("--graphs", nargs="*", help="graph files/directories to check task ids against")
     p.add_argument("--sample", type=int, default=5, help="number of run units to convert (default 5)")
