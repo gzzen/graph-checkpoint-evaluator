@@ -75,6 +75,16 @@ PACK=../opencode_deepseek_20261012T065851Z_2938483_2
 adapter reads the pack's `analysis/<run>_generation.json` (and resume plans) next to the run; giving it a
 run of the other type, or a pack instead of a run, fails with a message saying so.
 
+Condition-c runs (`<parent>_c_minimal`, `_c_single`, `_c_blind`) are question-local repairs of a frozen b run, so
+`c.py` reads the c run and its b parent next to it: one trace per finished repair, plus the b capsule trace for the
+questions without one. `--option answers=proposed` scores the repair agent's own proposal instead of the
+controller's output (which falls back to b when a repair fails validation), as condition `<level>_proposed`:
+
+```bash
+PACK=../20261022T060324Z
+.venv/bin/gce adapt --adapter adapters/contrib/c.py --run $PACK/runs/20261022T060324Z_b_c_minimal --out out/traces/c_minimal
+```
+
 `gce report` also writes `paths/<condition>/<group>.md`, one file per running condition and task group
 (e.g. `paths/native/bix-10.md` and `paths/b/bix-10.md`; conditions are never pooled), which
 `summary.md` links to. Each file opens with the full checkpoint graph of the group (all checkpoints and
